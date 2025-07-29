@@ -409,22 +409,7 @@ async function performCodeReview(options: ReviewOptions): Promise<string> {
       options.projectPath
     );
 
-    // 确保返回字符串格式
-    let resultText: string;
-    if (typeof reviewResult === "string") {
-      resultText = reviewResult;
-    } else if (reviewResult && typeof reviewResult === "object") {
-      // 如果是对象，尝试提取文本内容
-      resultText =
-        reviewResult.content ||
-        reviewResult.text ||
-        reviewResult.message ||
-        JSON.stringify(reviewResult);
-    } else {
-      resultText = "代码审查完成，但未收到具体结果。";
-    }
-
-    return resultText;
+    return reviewResult.text;
   } catch (error) {
     console.error("❌ Code review failed:", error);
     throw error;
@@ -473,34 +458,6 @@ function parseArguments(): ReviewOptions {
   }
 
   return options as ReviewOptions;
-}
-
-async function main() {
-  try {
-    const options = parseArguments();
-    const result = await performCodeReview(options);
-
-    // 输出结果到标准输出，供 GitHub Actions 捕获
-    // 提取并格式化审查结果
-    let reviewText = "";
-    if (typeof result === "object" && result !== null && "text" in result) {
-      reviewText = (result as any).text;
-    } else if (typeof result === "string") {
-      reviewText = result;
-    } else {
-      reviewText = "代码审查完成，但未收到具体结果。";
-    }
-
-    console.log(reviewText);
-  } catch (error) {
-    console.error("\n❌ Review failed:", error);
-    process.exit(1);
-  }
-}
-
-// 如果直接运行此脚本，则执行 main 函数
-if (require.main === module) {
-  main();
 }
 
 export { performCodeReview, ReviewOptions };
