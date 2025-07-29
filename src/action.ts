@@ -4,6 +4,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as fs from "fs";
 import * as path from "path";
+import { spawn } from "child_process";
 import { performCodeReview, ReviewOptions } from "./review";
 
 interface ActionInputs {
@@ -128,33 +129,86 @@ class BugmentAction {
   private async generateDiffFile(): Promise<string> {
     core.info("📄 Generating PR diff file...");
 
+    const workspaceDir = this.getWorkspaceDirectory();
+    const diffPath = path.join(workspaceDir, "pr_diff.patch");
+
+    core.info(`📁 Using workspace directory: ${workspaceDir}`);
+    core.info(`🔍 Comparing ${this.prInfo.baseSha}...${this.prInfo.headSha}`);
+
+    try {
+      // Method 1: Try to use git diff locally (most accurate)
+      const diffContent = await this.generateLocalDiff(workspaceDir);
+      await fs.promises.writeFile(diffPath, diffContent);
+      core.info(`✅ Diff file generated using local git: ${diffPath}`);
+      return diffPath;
+    } catch (localError) {
+      const errorMessage =
+        localError instanceof Error ? localError.message : String(localError);
+      core.warning(`Local git diff failed: ${errorMessage}`);
+
+      // Method 2: Fallback to GitHub API
+      try {
+        const diffContent = await this.generateApiDiff();
+        await fs.promises.writeFile(diffPath, diffContent);
+        core.info(`✅ Diff file generated using GitHub API: ${diffPath}`);
+        return diffPath;
+      } catch (apiError) {
+        const apiErrorMessage =
+          apiError instanceof Error ? apiError.message : String(apiError);
+        core.error(`GitHub API diff failed: ${apiErrorMessage}`);
+        throw new Error(`Failed to generate diff: ${apiErrorMessage}`);
+      }
+    }
+  }
+
+  private async generateLocalDiff(workspaceDir: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const gitProcess = spawn(
+        "git",
+        ["diff", `${this.prInfo.baseSha}...${this.prInfo.headSha}`],
+        {
+          cwd: workspaceDir,
+          stdio: ["pipe", "pipe", "pipe"],
+        }
+      );
+
+      let stdout = "";
+      let stderr = "";
+
+      gitProcess.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      gitProcess.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      gitProcess.on("close", (code: number) => {
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          reject(new Error(`Git diff failed with code ${code}: ${stderr}`));
+        }
+      });
+
+      gitProcess.on("error", (error: Error) => {
+        reject(error);
+      });
+    });
+  }
+
+  private async generateApiDiff(): Promise<string> {
     const diffResponse = await this.octokit.rest.repos.compareCommits({
       owner: this.prInfo.owner,
       repo: this.prInfo.repo,
       base: this.prInfo.baseSha,
       head: this.prInfo.headSha,
+      mediaType: {
+        format: "diff",
+      },
     });
 
-    const workspaceDir = this.getWorkspaceDirectory();
-    const diffPath = path.join(workspaceDir, "pr_diff.patch");
-
-    core.info(`📁 Using workspace directory: ${workspaceDir}`);
-
-    const diffContent = diffResponse.data.diff_url
-      ? await this.fetchDiffContent(diffResponse.data.diff_url)
-      : "No diff available";
-
-    console.log(diffContent);
-
-    await fs.promises.writeFile(diffPath, diffContent);
-
-    core.info(`✅ Diff file generated: ${diffPath}`);
-    return diffPath;
-  }
-
-  private async fetchDiffContent(diffUrl: string): Promise<string> {
-    const response = await fetch(diffUrl);
-    return await response.text();
+    return diffResponse.data as unknown as string;
   }
 
   private async performReview(diffPath: string): Promise<string> {
