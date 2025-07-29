@@ -1,5 +1,7 @@
 # Bugment AI Code Review Action
 
+[English](README.md) | [中文](README-zh.md)
+
 [![GitHub release](https://img.shields.io/github/release/J3n5en/bugment.svg)](https://github.com/J3n5en/bugment/releases)
 [![GitHub marketplace](https://img.shields.io/badge/marketplace-bugment--ai--code--review-blue?logo=github)](https://github.com/marketplace/actions/bugment-ai-code-review)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
