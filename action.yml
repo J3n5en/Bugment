@@ -1,0 +1,31 @@
+name: "Bugment AI Code Review"
+description: "AI-powered code review for Pull Requests using Augment"
+author: "Bugment Team"
+
+branding:
+  icon: "search"
+  color: "blue"
+
+inputs:
+  augment_access_token:
+    description: "Augment access token for authentication"
+    required: true
+  augment_tenant_url:
+    description: "Augment tenant URL for authentication"
+    required: true
+  github_token:
+    description: "GitHub token for posting comments"
+    required: true
+    default: ${{ github.token }}
+
+outputs:
+  review_result:
+    description: "The generated code review result"
+  issues_found:
+    description: "Number of issues found during review"
+  review_status:
+    description: "Review completion status: success, failed, or skipped"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"
