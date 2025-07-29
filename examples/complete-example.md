@@ -54,7 +54,7 @@ jobs:
     steps:
       # 运行 AI 代码审查（Action 会自动检出代码）
       - name: Run AI Code Review
-        uses: J3n5en/bugment@v1
+        uses: J3n5en/bugment@main
         with:
           # 必需参数：Augment 认证信息
           augment_access_token: ${{ secrets.AUGMENT_ACCESS_TOKEN }}
