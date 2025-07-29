@@ -27,5 +27,25 @@ outputs:
     description: "Review completion status: success, failed, or skipped"
 
 runs:
-  using: "node20"
-  main: "dist/index.js"
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        npm ci
+
+    - name: Run TypeScript action
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        npx tsx src/action.ts
+      env:
+        INPUT_AUGMENT_ACCESS_TOKEN: ${{ inputs.augment_access_token }}
+        INPUT_AUGMENT_TENANT_URL: ${{ inputs.augment_tenant_url }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
