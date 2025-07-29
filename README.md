@@ -61,11 +61,10 @@ Add these secrets to your repository settings:
 
 ## 📋 Input Parameters
 
-| Parameter              | Description                       | Required | Default               |
-| ---------------------- | --------------------------------- | -------- | --------------------- |
-| `augment_access_token` | Augment access token              | ✅       | -                     |
-| `augment_tenant_url`   | Augment tenant URL                | ✅       | -                     |
-| `github_token`         | GitHub token for posting comments | ✅       | `${{ github.token }}` |
+| Parameter              | Description          | Required | Default |
+| ---------------------- | -------------------- | -------- | ------- |
+| `augment_access_token` | Augment access token | ✅       | -       |
+| `augment_tenant_url`   | Augment tenant URL   | ✅       | -       |
 
 ## 📤 Outputs
 
@@ -105,7 +104,7 @@ jobs:
       pull-requests: write
     steps:
       - name: AI Code Review
-        uses: J3n5en/bugment@v1
+        uses: J3n5en/bugment@main
         with:
           augment_access_token: ${{ secrets.AUGMENT_ACCESS_TOKEN }}
           augment_tenant_url: ${{ secrets.AUGMENT_TENANT_URL }}
