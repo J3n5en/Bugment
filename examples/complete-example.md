@@ -24,10 +24,10 @@
 2. 点击 `New repository secret`
 3. 添加以下 secrets：
 
-| Secret 名称 | 值 | 说明 |
-|------------|----|----|
+| Secret 名称            | 值                    | 说明                  |
+| ---------------------- | --------------------- | --------------------- |
 | `AUGMENT_ACCESS_TOKEN` | 您的 Augment 访问令牌 | 用于 Augment API 认证 |
-| `AUGMENT_TENANT_URL` | 您的 Augment 租户 URL | Augment 服务地址 |
+| `AUGMENT_TENANT_URL`   | 您的 Augment 租户 URL | Augment 服务地址      |
 
 ## 📝 步骤 3: 创建工作流文件
 
@@ -45,29 +45,20 @@ jobs:
   ai-code-review:
     name: AI Code Review
     runs-on: ubuntu-latest
-    
+
     # 设置必要的权限
     permissions:
-      contents: read          # 读取代码
-      pull-requests: write    # 写入 PR 评论
-    
+      contents: read # 读取代码
+      pull-requests: write # 写入 PR 评论
+
     steps:
-      # 第一步：检出代码（可选，Action 会自动获取 PR 差异）
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      # 第二步：运行 AI 代码审查
+      # 运行 AI 代码审查（Action 会自动检出代码）
       - name: Run AI Code Review
         uses: J3n5en/bugment@v1
         with:
           # 必需参数：Augment 认证信息
           augment_access_token: ${{ secrets.AUGMENT_ACCESS_TOKEN }}
           augment_tenant_url: ${{ secrets.AUGMENT_TENANT_URL }}
-          
-          # 可选参数：GitHub token（默认会自动使用）
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## 🎯 步骤 4: 测试设置
@@ -101,16 +92,21 @@ jobs:
 ### 常见问题
 
 **问题 1: 认证失败**
+
 ```
 Error: Authentication failed
 ```
+
 **解决方案**: 检查 `AUGMENT_ACCESS_TOKEN` 和 `AUGMENT_TENANT_URL` 是否正确设置
 
 **问题 2: 权限不足**
+
 ```
 Error: Resource not accessible by integration
 ```
+
 **解决方案**: 确保工作流文件中包含了正确的权限设置：
+
 ```yaml
 permissions:
   contents: read
@@ -118,10 +114,13 @@ permissions:
 ```
 
 **问题 3: 没有评论出现**
+
 ```
 工作流运行成功但没有评论
 ```
-**解决方案**: 
+
+**解决方案**:
+
 - 检查 PR 是否有代码变更
 - 确认 `github_token` 有写入权限
 - 查看 Actions 日志获取详细错误信息
@@ -140,18 +139,23 @@ permissions:
 ## 🤖 Bugment AI Code Review
 
 # Overall Comments
+
 - 1️⃣ 代码整体结构清晰，遵循了良好的编程实践
 - 2️⃣ 建议添加更多的错误处理机制
 - 3️⃣ 部分函数可以进一步优化性能
 
 # Code Smells
+
 ## 1. 函数过长
+
 **严重程度**: 🟡 **中等**
 **描述**: `processData` 函数包含过多逻辑，建议拆分为更小的函数
 **位置**: `src/utils.js#L15-L45`
-**AI修复Prompt**: 
+**AI修复Prompt**:
 ```
+
 Split the long processData function into smaller, single-responsibility functions
+
 ```
 
 # Bugs

@@ -120,6 +120,11 @@ class BugmentAction {
     core.info("✅ Augment authentication configured");
   }
 
+  private getWorkspaceDirectory(): string {
+    // GitHub Actions sets GITHUB_WORKSPACE to the user's repository directory
+    return process.env.GITHUB_WORKSPACE || process.cwd();
+  }
+
   private async generateDiffFile(): Promise<string> {
     core.info("📄 Generating PR diff file...");
 
@@ -130,7 +135,11 @@ class BugmentAction {
       head: this.prInfo.headSha,
     });
 
-    const diffPath = path.join(process.cwd(), "pr_diff.patch");
+    const workspaceDir = this.getWorkspaceDirectory();
+    const diffPath = path.join(workspaceDir, "pr_diff.patch");
+
+    core.info(`📁 Using workspace directory: ${workspaceDir}`);
+
     await fs.promises.writeFile(
       diffPath,
       diffResponse.data.diff_url
@@ -150,8 +159,9 @@ class BugmentAction {
   private async performReview(diffPath: string): Promise<string> {
     core.info("🤖 Performing AI code review...");
 
+    const workspaceDir = this.getWorkspaceDirectory();
     const reviewOptions: ReviewOptions = {
-      projectPath: process.cwd(),
+      projectPath: workspaceDir,
       prTitle: this.prInfo.title,
       prDescription: this.prInfo.body,
       diffPath: diffPath,
@@ -160,6 +170,7 @@ class BugmentAction {
       commitSha: this.prInfo.headSha,
     };
 
+    core.info(`🔍 Analyzing project at: ${workspaceDir}`);
     const result = await performCodeReview(reviewOptions);
     core.info("✅ Code review completed");
 

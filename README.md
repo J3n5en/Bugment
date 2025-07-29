@@ -43,7 +43,6 @@ jobs:
         with:
           augment_access_token: ${{ secrets.AUGMENT_ACCESS_TOKEN }}
           augment_tenant_url: ${{ secrets.AUGMENT_TENANT_URL }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### 2. Configure Secrets
@@ -105,7 +104,8 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: J3n5en/bugment@v1
+      - name: AI Code Review
+        uses: J3n5en/bugment@v1
         with:
           augment_access_token: ${{ secrets.AUGMENT_ACCESS_TOKEN }}
           augment_tenant_url: ${{ secrets.AUGMENT_TENANT_URL }}
