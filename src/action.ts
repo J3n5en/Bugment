@@ -140,12 +140,13 @@ class BugmentAction {
 
     core.info(`📁 Using workspace directory: ${workspaceDir}`);
 
-    await fs.promises.writeFile(
-      diffPath,
-      diffResponse.data.diff_url
-        ? await this.fetchDiffContent(diffResponse.data.diff_url)
-        : "No diff available"
-    );
+    const diffContent = diffResponse.data.diff_url
+      ? await this.fetchDiffContent(diffResponse.data.diff_url)
+      : "No diff available";
+
+    console.log(diffContent);
+
+    await fs.promises.writeFile(diffPath, diffContent);
 
     core.info(`✅ Diff file generated: ${diffPath}`);
     return diffPath;
