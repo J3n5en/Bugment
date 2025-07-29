@@ -409,7 +409,22 @@ async function performCodeReview(options: ReviewOptions): Promise<string> {
       options.projectPath
     );
 
-    return reviewResult || "代码审查完成，但未收到具体结果。";
+    // 确保返回字符串格式
+    let resultText: string;
+    if (typeof reviewResult === "string") {
+      resultText = reviewResult;
+    } else if (reviewResult && typeof reviewResult === "object") {
+      // 如果是对象，尝试提取文本内容
+      resultText =
+        reviewResult.content ||
+        reviewResult.text ||
+        reviewResult.message ||
+        JSON.stringify(reviewResult);
+    } else {
+      resultText = "代码审查完成，但未收到具体结果。";
+    }
+
+    return resultText;
   } catch (error) {
     console.error("❌ Code review failed:", error);
     throw error;
