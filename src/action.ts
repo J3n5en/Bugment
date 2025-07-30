@@ -303,49 +303,19 @@ class BugmentAction {
     const issues: ReviewIssue[] = [];
 
     // Parse different types of issues from the review text
-    // This is a simplified parser - in production, you might want more sophisticated parsing
-    const bugPattern = /### 🐛 潜在 Bug[\s\S]*?(?=###|$)/g;
-    const smellPattern = /### 🔍 Code Smell[\s\S]*?(?=###|$)/g;
-    const securityPattern = /### 🔒 安全问题[\s\S]*?(?=###|$)/g;
-    const performancePattern = /### ⚡ 性能问题[\s\S]*?(?=###|$)/g;
+    // Updated patterns to match the new prompt format
+    const bugPattern = /# Bugs[\s\S]*?(?=# |$)/g;
+    const smellPattern = /# Code Smells[\s\S]*?(?=# |$)/g;
+    const securityPattern = /# Security Issues[\s\S]*?(?=# |$)/g;
+    const performancePattern = /# Performance Issues[\s\S]*?(?=# |$)/g;
 
     let issueId = 1;
 
-    // Parse bugs
-    const bugMatches = reviewResult.match(bugPattern);
-    if (bugMatches) {
-      bugMatches.forEach(match => {
-        const issue = this.parseIssueFromText(match, 'bug', `bug_${issueId++}`);
-        if (issue) issues.push(issue);
-      });
-    }
-
-    // Parse code smells
-    const smellMatches = reviewResult.match(smellPattern);
-    if (smellMatches) {
-      smellMatches.forEach(match => {
-        const issue = this.parseIssueFromText(match, 'code_smell', `smell_${issueId++}`);
-        if (issue) issues.push(issue);
-      });
-    }
-
-    // Parse security issues
-    const securityMatches = reviewResult.match(securityPattern);
-    if (securityMatches) {
-      securityMatches.forEach(match => {
-        const issue = this.parseIssueFromText(match, 'security', `security_${issueId++}`);
-        if (issue) issues.push(issue);
-      });
-    }
-
-    // Parse performance issues
-    const performanceMatches = reviewResult.match(performancePattern);
-    if (performanceMatches) {
-      performanceMatches.forEach(match => {
-        const issue = this.parseIssueFromText(match, 'performance', `perf_${issueId++}`);
-        if (issue) issues.push(issue);
-      });
-    }
+    // Parse different issue types
+    this.parseIssuesFromSection(reviewResult, bugPattern, 'bug', issues, issueId);
+    this.parseIssuesFromSection(reviewResult, smellPattern, 'code_smell', issues, issueId);
+    this.parseIssuesFromSection(reviewResult, securityPattern, 'security', issues, issueId);
+    this.parseIssuesFromSection(reviewResult, performancePattern, 'performance', issues, issueId);
 
     return {
       reviewId,
@@ -357,17 +327,40 @@ class BugmentAction {
     };
   }
 
+  private parseIssuesFromSection(reviewResult: string, pattern: RegExp, type: ReviewIssue['type'], issues: ReviewIssue[], issueId: number): void {
+    const matches = reviewResult.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        // Extract individual issues from the section
+        const issueMatches = match.match(/## \d+\. .+?(?=## \d+\.|$)/gs);
+        if (issueMatches) {
+          issueMatches.forEach(issueText => {
+            const issue = this.parseIssueFromText(issueText, type, `${type}_${issueId++}`);
+            if (issue) issues.push(issue);
+          });
+        }
+      });
+    }
+  }
+
   private parseIssueFromText(text: string, type: ReviewIssue['type'], id: string): ReviewIssue | null {
+    // Extract title from the issue heading
+    const titleMatch = text.match(/## \d+\. (.+?)(?:\n|$)/);
+    if (!titleMatch) return null;
+    
+    const title = titleMatch[1].trim();
+    
     // Extract severity, description, location, etc. from the text
-    const severityMatch = text.match(/严重程度[：:]\s*(\w+)/);
-    const locationMatch = text.match(/位置[：:]\s*(.+?)(?:\n|$)/);
-    const descriptionMatch = text.match(/描述[：:]\s*([\s\S]*?)(?=位置|AI修复|$)/);
-    const fixPromptMatch = text.match(/AI修复Prompt[：:]\s*(.+?)(?:\n|$)/);
-    const suggestionMatch = text.match(/建议修改[：:]\s*([\s\S]*?)(?=\n\n|$)/);
+    const severityMatch = text.match(/\*\*严重程度\*\*[：:]\s*🟡\s*\*\*(\w+)\*\*|\*\*严重程度\*\*[：:]\s*🟢\s*\*\*(\w+)\*\*|\*\*严重程度\*\*[：:]\s*🔴\s*\*\*(\w+)\*\*/);
+    const locationMatch = text.match(/\*\*位置\*\*[：:]\s*(.+?)(?:\n|$)/);
+    const descriptionMatch = text.match(/\*\*描述\*\*[：:]\s*([\s\S]*?)(?=\*\*位置\*\*|\*\*建议修改\*\*|\*\*AI修复Prompt\*\*|$)/);
+    const suggestionMatch = text.match(/\*\*建议修改\*\*[：:]\s*([\s\S]*?)(?=\*\*AI修复Prompt\*\*|$)/);
+    const fixPromptMatch = text.match(/\*\*AI修复Prompt\*\*[：:]\s*```\s*([\s\S]*?)\s*```/);
 
     if (!descriptionMatch || !descriptionMatch[1]) return null;
 
-    const severity = this.mapSeverity(severityMatch?.[1] || 'medium');
+    const severityText = severityMatch?.[1] || severityMatch?.[2] || severityMatch?.[3] || 'medium';
+    const severity = this.mapSeverity(severityText);
     const description = descriptionMatch[1].trim();
     const location = locationMatch?.[1]?.trim() || '';
 
@@ -378,7 +371,7 @@ class BugmentAction {
       id,
       type,
       severity,
-      title: this.extractTitleFromDescription(description),
+      title,
       description,
       location,
       filePath,
@@ -503,7 +496,7 @@ class BugmentAction {
       case 'bug': return '潜在 Bug';
       case 'security': return '安全问题';
       case 'performance': return '性能问题';
-      case 'code_smell': return 'Code Smell';
+      case 'code_smell': return '代码异味';
       default: return '其他问题';
     }
   }
@@ -535,7 +528,7 @@ class BugmentAction {
     // Use GitHub alert syntax for better visibility
     const alertType = issue.severity === 'critical' || issue.severity === 'high' ? 'WARNING' : 'NOTE';
     formatted += `> [!${alertType}]\n`;
-    formatted += `> **严重程度:** ${this.getSeverityEmoji(issue.severity)} ${issue.severity.toUpperCase()}\n\n`;
+    formatted += `> **严重程度:** ${this.getSeverityEmoji(issue.severity)} ${this.getSeverityText(issue.severity)}\n\n`;
 
     formatted += `**📝 问题描述:**\n`;
     formatted += `${issue.description}\n\n`;
@@ -556,8 +549,12 @@ class BugmentAction {
 
   private extractSummaryFromReview(reviewResult: string): string {
     // Extract the summary section from the review
-    const summaryMatch = reviewResult.match(/## 总体评价[\s\S]*?(?=##|$)/);
-    return summaryMatch?.[0] || '';
+    const summaryMatch = reviewResult.match(/# Overall Comments[\s\S]*?(?=# |$)/);
+    if (summaryMatch && summaryMatch[0]) {
+      // Clean up the summary
+      return summaryMatch[0].replace(/# Overall Comments\s*/, '').trim();
+    }
+    return '';
   }
 
   private async getPreviousReviewsAndDismissOld(): Promise<ReviewResult[]> {
@@ -772,21 +769,21 @@ class BugmentAction {
     }
 
     // Add reviewed changes section
-    content += `### Reviewed Changes\n\n`;
-    content += `Bugment reviewed code changes and generated ${reviewResult.totalIssues} comment${reviewResult.totalIssues !== 1 ? 's' : ''}.\n\n`;
+    content += `### 审查结果\n\n`;
+    content += `Bugment 审查了代码变更并生成了 ${reviewResult.totalIssues} 条评论。\n\n`;
 
     // Check if this is a clean PR (no issues found)
     const hasAnyIssues = reviewResult.totalIssues > 0;
     // Create file summary table if there are issues with file locations
     const filesWithIssues = this.getFilesWithIssues(reviewResult.issues);
     if (filesWithIssues.length > 0) {
-      content += `| File | Issues Found |\n`;
-      content += `| ---- | ------------ |\n`;
+      content += `| 文件 | 发现的问题 |\n`;
+      content += `| ---- | ---------- |\n`;
       
       filesWithIssues.forEach(({ filePath, issues, description }) => {
         const issueCount = issues.length;
         const severityDistribution = this.getSeverityDistribution(issues);
-        content += `| ${filePath} | ${issueCount} issue${issueCount !== 1 ? 's' : ''} (${severityDistribution}) - ${description} |\n`;
+        content += `| ${filePath} | ${issueCount} 个问题 (${severityDistribution}) - ${description} |\n`;
       });
       content += `\n`;
     }
@@ -794,31 +791,31 @@ class BugmentAction {
     // Add status information if there are changes
     const hasStatusChanges = comparison.fixedCount > 0 || comparison.newCount > 0 || comparison.persistentCount > 0;
     if (hasStatusChanges) {
-      content += `### Change Summary\n\n`;
+      content += `### 变更摘要\n\n`;
       if (comparison.fixedCount > 0) {
-        content += `- ✅ **${comparison.fixedCount}** issue${comparison.fixedCount !== 1 ? 's' : ''} fixed\n`;
+        content += `- ✅ **${comparison.fixedCount}** 个问题已修复\n`;
       }
       if (comparison.newCount > 0) {
-        content += `- 🆕 **${comparison.newCount}** new issue${comparison.newCount !== 1 ? 's' : ''} found\n`;
+        content += `- 🆕 **${comparison.newCount}** 个新问题发现\n`;
       }
       if (comparison.persistentCount > 0) {
-        content += `- ⚠️ **${comparison.persistentCount}** issue${comparison.persistentCount !== 1 ? 's' : ''} still need attention\n`;
+        content += `- ⚠️ **${comparison.persistentCount}** 个问题仍需关注\n`;
       }
       content += `\n`;
     }
 
     // Show success message for clean PRs
     if (!hasAnyIssues && !hasStatusChanges) {
-      content += `### 🎉 Excellent work!\n\n`;
-      content += `No issues found in this pull request. The code meets quality standards.\n\n`;
+      content += `### 🎉 优秀的工作！\n\n`;
+      content += `此 Pull Request 未发现任何问题，代码符合质量标准。\n\n`;
     }
 
     // Add issues summary for low confidence issues (if any)
     const lowConfidenceIssues = reviewResult.issues.filter(issue => issue.severity === 'low');
     if (lowConfidenceIssues.length > 0) {
       content += `<details>\n`;
-      content += `<summary>Comments suppressed due to low confidence (${lowConfidenceIssues.length})</summary>\n\n`;
-      content += `These issues were identified but may be false positives or minor suggestions.\n\n`;
+      content += `<summary>由于置信度较低而抑制的评论 (${lowConfidenceIssues.length})</summary>\n\n`;
+      content += `这些问题已被识别，但可能是误报或轻微建议。\n\n`;
       content += `</details>\n\n`;
     }
 
@@ -894,7 +891,7 @@ class BugmentAction {
 
       if (issuesByType.code_smell.length > 0) {
         content += `<details>\n`;
-        content += `<summary>🔍 Code Smell (${issuesByType.code_smell.length} 个) - 点击展开详情</summary>\n\n`;
+        content += `<summary>🔍 代码异味 (${issuesByType.code_smell.length} 个) - 点击展开详情</summary>\n\n`;
         issuesByType.code_smell.forEach((issue, index) => {
           content += this.formatIssueForGitHub(issue, index + 1);
         });
@@ -955,7 +952,8 @@ class BugmentAction {
   }
 
   private formatLineComment(issue: ReviewIssue): string {
-    let comment = `**${this.getTypeEmoji(issue.type)} ${this.getTypeName(issue.type)}** - ${this.getSeverityEmoji(issue.severity)} ${issue.severity.toUpperCase()}\n\n`;
+    const severityText = this.getSeverityText(issue.severity);
+    let comment = `**${this.getTypeEmoji(issue.type)} ${this.getTypeName(issue.type)}** - ${this.getSeverityEmoji(issue.severity)} ${severityText}\n\n`;
     
     comment += `${issue.description}\n\n`;
     
@@ -970,6 +968,16 @@ class BugmentAction {
     }
     
     return comment;
+  }
+
+  private getSeverityText(severity: ReviewIssue['severity']): string {
+    switch (severity) {
+      case 'critical': return '严重';
+      case 'high': return '高';
+      case 'medium': return '中等';
+      case 'low': return '轻微';
+      default: return '中等';
+    }
   }
 
   private determineReviewEvent(reviewResult: ReviewResult): 'REQUEST_CHANGES' | 'COMMENT' {
