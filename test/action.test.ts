@@ -302,4 +302,72 @@ describe('Bugment Review System', () => {
       expect(issuesAreSimilar(issue2, issue3)).toBe(false);
     });
   });
+
+  describe('Perfect PR Scenarios', () => {
+    it('should handle perfect PR with no issues', () => {
+      const perfectReview: ReviewResult = {
+        reviewId: 'pr123_perfect_123456',
+        timestamp: '2023-01-01T00:00:00Z',
+        commitSha: 'perfect-sha',
+        summary: '## 总体评价\n代码质量优秀',
+        issues: [],
+        totalIssues: 0
+      };
+
+      const comparison = compareReviews(perfectReview, []);
+
+      expect(comparison.fixedCount).toBe(0);
+      expect(comparison.newCount).toBe(0);
+      expect(comparison.persistentCount).toBe(0);
+      expect(comparison.newIssues).toHaveLength(0);
+      expect(comparison.fixedIssues).toHaveLength(0);
+      expect(comparison.persistentIssues).toHaveLength(0);
+    });
+
+    it('should handle all issues fixed scenario', () => {
+      const previousReview: ReviewResult = {
+        reviewId: 'pr123_with_issues_123456',
+        timestamp: '2023-01-01T00:00:00Z',
+        commitSha: 'old-sha',
+        summary: 'Previous review with issues',
+        issues: [
+          {
+            id: 'bug_1',
+            type: 'bug',
+            severity: 'high',
+            title: 'Critical Bug',
+            description: 'A critical bug that needs fixing',
+            location: 'src/critical.ts:10'
+          },
+          {
+            id: 'smell_1',
+            type: 'code_smell',
+            severity: 'medium',
+            title: 'Code Smell',
+            description: 'Some code smell',
+            location: 'src/smell.ts:20'
+          }
+        ],
+        totalIssues: 2
+      };
+
+      const fixedReview: ReviewResult = {
+        reviewId: 'pr123_fixed_789012',
+        timestamp: '2023-01-02T00:00:00Z',
+        commitSha: 'fixed-sha',
+        summary: '## 总体评价\n所有问题已修复',
+        issues: [],
+        totalIssues: 0
+      };
+
+      const comparison = compareReviews(fixedReview, [previousReview]);
+
+      expect(comparison.fixedCount).toBe(2);
+      expect(comparison.newCount).toBe(0);
+      expect(comparison.persistentCount).toBe(0);
+      expect(comparison.fixedIssues).toHaveLength(2);
+      expect(comparison.fixedIssues[0]?.title).toBe('Critical Bug');
+      expect(comparison.fixedIssues[1]?.title).toBe('Code Smell');
+    });
+  });
 });

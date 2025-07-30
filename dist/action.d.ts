@@ -18,14 +18,18 @@ declare class BugmentAction {
     private parseIssueFromText;
     private mapSeverity;
     private extractTitleFromDescription;
+    private getSeverityEmoji;
+    private getTypeEmoji;
+    private getTypeName;
+    private getSeverityDistribution;
+    private formatIssueForGitHub;
     private extractSummaryFromReview;
-    private getPreviousReviews;
+    private getPreviousReviewsAndHideOld;
     private compareReviews;
     private getIssueSignature;
     private issuesAreSimilar;
     private formatReviewCommentWithStatus;
     private formatOriginalReviewContent;
-    private formatIssue;
     private createNewReviewComment;
 }
 export { BugmentAction };
