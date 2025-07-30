@@ -482,9 +482,9 @@ class BugmentAction {
       });
 
       const reviewResults: ReviewResult[] = [];
-      const commentsToHide: number[] = [];
+      const commentsToMinimize: { id: number; nodeId: string }[] = [];
 
-      // Parse previous AI Code Review comments and collect them for hiding
+      // Parse previous AI Code Review comments and collect them for minimizing
       for (const comment of comments.data) {
         if (comment.body?.includes("AI Code Review") &&
             comment.body?.includes("REVIEW_DATA:")) {
@@ -493,7 +493,7 @@ class BugmentAction {
             if (reviewDataMatch && reviewDataMatch[1]) {
               const reviewData = JSON.parse(reviewDataMatch[1]);
               reviewResults.push(reviewData);
-              commentsToHide.push(comment.id);
+              commentsToMinimize.push({ id: comment.id, nodeId: comment.node_id });
             }
           } catch (error) {
             core.warning(`Failed to parse previous review data: ${error}`);
@@ -501,16 +501,22 @@ class BugmentAction {
         }
       }
 
-      // Hide all previous review comments by minimizing them
-      for (const commentId of commentsToHide) {
+      // Minimize all previous review comments using GitHub's native minimize feature
+      for (const comment of commentsToMinimize) {
         try {
-          const originalComment = comments.data.find(c => c.id === commentId);
-          if (originalComment?.body) {
-            await this.octokit.rest.issues.updateComment({
-              owner: this.prInfo.owner,
-              repo: this.prInfo.repo,
-              comment_id: commentId,
-              body: `<details>
+          await this.minimizeComment(comment.nodeId);
+          core.info(`Minimized previous review comment: ${comment.id}`);
+        } catch (error) {
+          core.warning(`Failed to minimize comment ${comment.id}: ${error}`);
+          // Fallback to updating comment body with collapsible details
+          try {
+            const originalComment = comments.data.find(c => c.id === comment.id);
+            if (originalComment?.body) {
+              await this.octokit.rest.issues.updateComment({
+                owner: this.prInfo.owner,
+                repo: this.prInfo.repo,
+                comment_id: comment.id,
+                body: `<details>
 <summary>🔄 Previous AI Code Review - Click to expand</summary>
 
 ${originalComment.body}
@@ -518,11 +524,12 @@ ${originalComment.body}
 </details>
 
 > ℹ️ This review has been superseded by a newer one below.`
-            });
-            core.info(`Minimized previous review comment: ${commentId}`);
+              });
+              core.info(`Updated previous review comment with collapsible format: ${comment.id}`);
+            }
+          } catch (fallbackError) {
+            core.warning(`Failed to update comment ${comment.id} as fallback: ${fallbackError}`);
           }
-        } catch (error) {
-          core.warning(`Failed to minimize comment ${commentId}: ${error}`);
         }
       }
 
@@ -532,6 +539,28 @@ ${originalComment.body}
       core.warning(`Failed to get previous reviews: ${error}`);
       return [];
     }
+  }
+
+  private async minimizeComment(nodeId: string): Promise<void> {
+    const mutation = `
+      mutation MinimizeComment($input: MinimizeCommentInput!) {
+        minimizeComment(input: $input) {
+          minimizedComment {
+            isMinimized
+            minimizedReason
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        subjectId: nodeId,
+        classifier: "OUTDATED"
+      }
+    };
+
+    await this.octokit.graphql(mutation, variables);
   }
 
   private compareReviews(currentReview: ReviewResult, previousReviews: ReviewResult[]): ReviewComparison {

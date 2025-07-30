@@ -25,6 +25,7 @@ declare class BugmentAction {
     private formatIssueForGitHub;
     private extractSummaryFromReview;
     private getPreviousReviewsAndHideOld;
+    private minimizeComment;
     private compareReviews;
     private getIssueSignature;
     private issuesAreSimilar;
