@@ -527,7 +527,7 @@ class BugmentAction {
             header += `> ✨ **代码风格：** 符合最佳实践  \n`;
             header += `> 🛡️ **安全检查：** 通过  \n`;
             header += `> ⚡ **性能检查：** 通过  \n\n`;
-            header += `**🚀 这个 PR 可以安全合并！**\n\n`;
+            header += `**✅ 代码质量良好，建议人工审核后合并！**\n\n`;
         }
         else if (!hasAnyIssues && hasStatusChanges) {
             // All issues were fixed
@@ -542,7 +542,7 @@ class BugmentAction {
                     header += `  - 🔥 严重程度: ${this.getSeverityEmoji(issue.severity)} ${issue.severity}\n\n`;
                 });
             }
-            header += `**🚀 这个 PR 现在可以安全合并！**\n\n`;
+            header += `**✅ 所有问题已解决，建议人工审核后合并！**\n\n`;
         }
         else {
             // There are still issues or new issues found
@@ -656,19 +656,22 @@ class BugmentAction {
     }
     async createPullRequestReview(commentBody, reviewResult) {
         // Determine the review event based on issues found
-        // Note: GitHub Actions cannot APPROVE PRs, so we use COMMENT for no issues
+        // IMPORTANT: Never auto-approve or auto-merge PRs for security reasons
         let event = 'COMMENT';
         if (reviewResult.totalIssues > 0) {
             // Issues found - determine severity
             const hasCriticalOrHighIssues = reviewResult.issues.some(issue => issue.severity === 'critical' || issue.severity === 'high');
             if (hasCriticalOrHighIssues) {
+                // Block merge for critical/high severity issues
                 event = 'REQUEST_CHANGES';
             }
             else {
+                // Provide feedback but don't block merge for low/medium issues
                 event = 'COMMENT';
             }
         }
-        // For no issues, we keep event = 'COMMENT' with positive message
+        // For no issues, we use COMMENT with positive feedback
+        // Never use APPROVE to prevent automatic merging
         await this.octokit.rest.pulls.createReview({
             owner: this.prInfo.owner,
             repo: this.prInfo.repo,
