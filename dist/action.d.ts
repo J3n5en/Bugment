@@ -24,14 +24,13 @@ declare class BugmentAction {
     private getSeverityDistribution;
     private formatIssueForGitHub;
     private extractSummaryFromReview;
-    private getPreviousReviewsAndHideOld;
-    private minimizeComment;
+    private getPreviousReviewsAndDismissOld;
     private compareReviews;
     private getIssueSignature;
     private issuesAreSimilar;
     private formatReviewCommentWithStatus;
     private formatOriginalReviewContent;
-    private createNewReviewComment;
+    private createPullRequestReview;
 }
 export { BugmentAction };
 //# sourceMappingURL=action.d.ts.map

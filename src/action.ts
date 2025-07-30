@@ -271,8 +271,8 @@ class BugmentAction {
     // Parse the review result to extract structured data
     const parsedResult = this.parseReviewResult(reviewResult);
 
-    // Get previous review results for comparison and hide old comments
-    const previousReviews = await this.getPreviousReviewsAndHideOld();
+    // Get previous review results for comparison and dismiss old reviews
+    const previousReviews = await this.getPreviousReviewsAndDismissOld();
 
     // Compare with previous reviews to identify fixed/new issues
     const comparison = this.compareReviews(parsedResult, previousReviews);
@@ -280,10 +280,10 @@ class BugmentAction {
     // Format comment with status information
     const commentBody = this.formatReviewCommentWithStatus(parsedResult, comparison);
 
-    // Always create a new comment instead of replacing
-    await this.createNewReviewComment(commentBody);
+    // Create a new Pull Request Review instead of Issue Comment
+    await this.createPullRequestReview(commentBody, parsedResult);
 
-    core.info("✅ Review comment posted");
+    core.info("✅ Review posted");
   }
 
   private parseReviewResult(reviewResult: string): ReviewResult {
@@ -472,28 +472,29 @@ class BugmentAction {
     return summaryMatch?.[0] || '';
   }
 
-  private async getPreviousReviewsAndHideOld(): Promise<ReviewResult[]> {
+  private async getPreviousReviewsAndDismissOld(): Promise<ReviewResult[]> {
     try {
-      // Get all comments on this PR
-      const comments = await this.octokit.rest.issues.listComments({
+      // Get all reviews on this PR
+      const reviews = await this.octokit.rest.pulls.listReviews({
         owner: this.prInfo.owner,
         repo: this.prInfo.repo,
-        issue_number: this.prInfo.number,
+        pull_number: this.prInfo.number,
       });
 
       const reviewResults: ReviewResult[] = [];
-      const commentsToMinimize: { id: number; nodeId: string }[] = [];
+      const reviewsToDismiss: { id: number; nodeId: string }[] = [];
 
-      // Parse previous AI Code Review comments and collect them for minimizing
-      for (const comment of comments.data) {
-        if (comment.body?.includes("AI Code Review") &&
-            comment.body?.includes("REVIEW_DATA:")) {
+      // Parse previous AI Code Review reviews and collect them for dismissing
+      for (const review of reviews.data) {
+        if (review.body?.includes("AI Code Review") &&
+            review.body?.includes("REVIEW_DATA:") &&
+            review.state !== 'DISMISSED') {
           try {
-            const reviewDataMatch = comment.body.match(/REVIEW_DATA:\s*```json\s*([\s\S]*?)\s*```/);
+            const reviewDataMatch = review.body.match(/REVIEW_DATA:\s*```json\s*([\s\S]*?)\s*```/);
             if (reviewDataMatch && reviewDataMatch[1]) {
               const reviewData = JSON.parse(reviewDataMatch[1]);
               reviewResults.push(reviewData);
-              commentsToMinimize.push({ id: comment.id, nodeId: comment.node_id });
+              reviewsToDismiss.push({ id: review.id, nodeId: review.node_id });
             }
           } catch (error) {
             core.warning(`Failed to parse previous review data: ${error}`);
@@ -501,35 +502,20 @@ class BugmentAction {
         }
       }
 
-      // Minimize all previous review comments using GitHub's native minimize feature
-      for (const comment of commentsToMinimize) {
+      // Dismiss all previous AI Code Review reviews
+      for (const review of reviewsToDismiss) {
         try {
-          await this.minimizeComment(comment.nodeId);
-          core.info(`Minimized previous review comment: ${comment.id}`);
+          await this.octokit.rest.pulls.dismissReview({
+            owner: this.prInfo.owner,
+            repo: this.prInfo.repo,
+            pull_number: this.prInfo.number,
+            review_id: review.id,
+            message: "Superseded by newer AI Code Review",
+            event: "DISMISS"
+          });
+          core.info(`Dismissed previous review: ${review.id}`);
         } catch (error) {
-          core.warning(`Failed to minimize comment ${comment.id}: ${error}`);
-          // Fallback to updating comment body with collapsible details
-          try {
-            const originalComment = comments.data.find(c => c.id === comment.id);
-            if (originalComment?.body) {
-              await this.octokit.rest.issues.updateComment({
-                owner: this.prInfo.owner,
-                repo: this.prInfo.repo,
-                comment_id: comment.id,
-                body: `<details>
-<summary>🔄 Previous AI Code Review - Click to expand</summary>
-
-${originalComment.body}
-
-</details>
-
-> ℹ️ This review has been superseded by a newer one below.`
-              });
-              core.info(`Updated previous review comment with collapsible format: ${comment.id}`);
-            }
-          } catch (fallbackError) {
-            core.warning(`Failed to update comment ${comment.id} as fallback: ${fallbackError}`);
-          }
+          core.warning(`Failed to dismiss review ${review.id}: ${error}`);
         }
       }
 
@@ -541,27 +527,7 @@ ${originalComment.body}
     }
   }
 
-  private async minimizeComment(nodeId: string): Promise<void> {
-    const mutation = `
-      mutation MinimizeComment($input: MinimizeCommentInput!) {
-        minimizeComment(input: $input) {
-          minimizedComment {
-            isMinimized
-            minimizedReason
-          }
-        }
-      }
-    `;
 
-    const variables = {
-      input: {
-        subjectId: nodeId,
-        classifier: "OUTDATED"
-      }
-    };
-
-    await this.octokit.graphql(mutation, variables);
-  }
 
   private compareReviews(currentReview: ReviewResult, previousReviews: ReviewResult[]): ReviewComparison {
     if (previousReviews.length === 0) {
@@ -810,12 +776,33 @@ ${originalComment.body}
 
 
 
-  private async createNewReviewComment(commentBody: string): Promise<void> {
-    await this.octokit.rest.issues.createComment({
+  private async createPullRequestReview(commentBody: string, reviewResult: ReviewResult): Promise<void> {
+    // Determine the review event based on issues found
+    let event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT' = 'COMMENT';
+
+    if (reviewResult.totalIssues === 0) {
+      // No issues found - approve the PR
+      event = 'APPROVE';
+    } else {
+      // Issues found - determine severity
+      const hasCriticalOrHighIssues = reviewResult.issues.some(
+        issue => issue.severity === 'critical' || issue.severity === 'high'
+      );
+
+      if (hasCriticalOrHighIssues) {
+        event = 'REQUEST_CHANGES';
+      } else {
+        event = 'COMMENT';
+      }
+    }
+
+    await this.octokit.rest.pulls.createReview({
       owner: this.prInfo.owner,
       repo: this.prInfo.repo,
-      issue_number: this.prInfo.number,
+      pull_number: this.prInfo.number,
       body: commentBody,
+      event: event,
+      commit_id: this.prInfo.headSha
     });
   }
 

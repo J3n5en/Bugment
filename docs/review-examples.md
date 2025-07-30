@@ -2,6 +2,17 @@
 
 本文档展示了改进后的 AI Code Review 在不同场景下的输出效果。
 
+## 🎯 新功能亮点
+
+### Pull Request Review 集成
+- ✅ 使用GitHub原生的Pull Request Review API
+- ✅ 显示在PR右侧的Reviews区域，就像GitHub Copilot一样
+- ✅ 根据问题严重程度自动设置Review状态：
+  - 🟢 **APPROVE**: 无问题时自动批准
+  - 🔴 **REQUEST_CHANGES**: 发现严重问题时要求修改
+  - 💬 **COMMENT**: 发现轻微问题时仅评论
+- ✅ 自动dismiss之前的AI review，保持界面整洁
+
 ## 🎉 场景1：完美的 PR（无任何问题）
 
 当 PR 代码质量完美，没有发现任何问题时：
@@ -149,20 +160,14 @@ Break down the complex function into smaller, more focused functions
 
 每次新的提交都会创建新的评论，同时自动隐藏之前的review评论，保持PR界面整洁：
 
-### 自动隐藏机制
+### 自动Dismiss机制
 
-当有新的review时，之前的评论会被自动折叠：
+当有新的review时，之前的AI Code Review会被自动dismiss：
 
-```markdown
-<details>
-<summary>🔄 Previous AI Code Review - Click to expand</summary>
-
-[之前的完整review内容]
-
-</details>
-
-> ℹ️ This review has been superseded by a newer one below.
-```
+- ✅ 使用GitHub原生的`dismissReview` API
+- ✅ 被dismiss的review会显示为"Dismissed"状态
+- ✅ 用户仍可以点击查看被dismiss的review内容
+- ✅ 保持PR Reviews区域整洁，只显示最新的review
 
 ### 修复历程追踪
 
@@ -175,9 +180,12 @@ Break down the complex function into smaller, more focused functions
 
 ### 优势
 
-- ✅ **界面整洁**：只显示最新的review，避免PR评论区过于冗长
-- ✅ **历史保留**：所有历史review都可以通过点击展开查看
+- ✅ **专业体验**：使用Pull Request Review API，就像GitHub Copilot一样专业
+- ✅ **智能状态**：根据问题严重程度自动设置APPROVE/REQUEST_CHANGES/COMMENT
+- ✅ **界面整洁**：自动dismiss旧review，保持Reviews区域整洁
+- ✅ **历史保留**：所有历史review都可以在Reviews区域查看
 - ✅ **状态清晰**：明确显示哪些问题已修复、哪些是新增的
 - ✅ **用户友好**：简洁的界面，重要信息一目了然
+- ✅ **原生集成**：完全融入GitHub的Review工作流
 
-这样的设计让开发者能够清楚地跟踪每次提交的改进情况，同时保持PR界面的整洁性。
+这样的设计让开发者能够清楚地跟踪每次提交的改进情况，同时享受GitHub原生Review功能的所有优势。
