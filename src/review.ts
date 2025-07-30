@@ -61,8 +61,8 @@ export class AugmentIPCClient extends EventEmitter {
   private serverProcess: ChildProcess | null = null;
   private serverPath: string;
   private isInitialized = false;
-  private connectionTimeout = 30000;
-  private requestTimeout = 60000;
+  private connectionTimeout = 60000;
+  private requestTimeout = 120000;
 
   constructor(serverPath: string = "./dist/server.js") {
     super();
@@ -383,15 +383,15 @@ async function performCodeReview(options: ReviewOptions): Promise<string> {
     await client.startServer(options.projectPath);
 
     // 等待同步完成
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (let attempt = 0; attempt < 300; attempt++) {
       const status = await client.getStatus();
 
       if (status.syncPercentage === 100) {
         break;
       }
 
-      if (attempt === 29) {
-        throw new Error("Server synchronization timeout after 30 attempts");
+      if (attempt === 299) {
+        throw new Error("Server synchronization timeout after 300 attempts");
       }
 
       // 等待1秒后重试
@@ -416,48 +416,6 @@ async function performCodeReview(options: ReviewOptions): Promise<string> {
   } finally {
     client.stopServer();
   }
-}
-
-function parseArguments(): ReviewOptions {
-  const args = process.argv.slice(2);
-  const options: Partial<ReviewOptions> = {};
-
-  for (let i = 0; i < args.length; i += 2) {
-    const key = args[i];
-    const value = args[i + 1];
-
-    switch (key) {
-      case "--path":
-        options.projectPath = value;
-        break;
-      case "--title":
-        options.prTitle = value;
-        break;
-      case "--body":
-        options.prDescription = value;
-        break;
-      case "--diff":
-        options.diffPath = value;
-        break;
-      case "--repo-owner":
-        options.repoOwner = value;
-        break;
-      case "--repo-name":
-        options.repoName = value;
-        break;
-      case "--commit-sha":
-        options.commitSha = value;
-        break;
-      default:
-        console.warn(`Unknown argument: ${key}`);
-    }
-  }
-
-  if (!options.projectPath) {
-    throw new Error("Project path is required. Use --path argument.");
-  }
-
-  return options as ReviewOptions;
 }
 
 export { performCodeReview, ReviewOptions };
