@@ -8,10 +8,18 @@
 - ✅ 使用GitHub原生的Pull Request Review API
 - ✅ 显示在PR右侧的Reviews区域，就像GitHub Copilot一样
 - ✅ 根据问题严重程度自动设置Review状态：
-  - 🟢 **APPROVE**: 无问题时自动批准
+  - 💬 **COMMENT**: 无问题时显示庆祝信息（GitHub Actions不能自动APPROVE）
   - 🔴 **REQUEST_CHANGES**: 发现严重问题时要求修改
   - 💬 **COMMENT**: 发现轻微问题时仅评论
 - ✅ 自动dismiss之前的AI review，保持界面整洁
+
+### ⚠️ GitHub Actions 限制说明
+由于GitHub的安全策略，GitHub Actions不能自动APPROVE Pull Request。因此：
+- 🟢 **无问题时**: 使用COMMENT状态显示庆祝信息，而不是APPROVE
+- 🔴 **严重问题时**: 使用REQUEST_CHANGES阻止合并
+- 💬 **轻微问题时**: 使用COMMENT提供建议
+
+这样既保证了安全性，又提供了有用的代码审查反馈。
 
 ## 🎉 场景1：完美的 PR（无任何问题）
 
@@ -181,7 +189,7 @@ Break down the complex function into smaller, more focused functions
 ### 优势
 
 - ✅ **专业体验**：使用Pull Request Review API，就像GitHub Copilot一样专业
-- ✅ **智能状态**：根据问题严重程度自动设置APPROVE/REQUEST_CHANGES/COMMENT
+- ✅ **智能状态**：根据问题严重程度自动设置REQUEST_CHANGES/COMMENT
 - ✅ **界面整洁**：自动dismiss旧review，保持Reviews区域整洁
 - ✅ **历史保留**：所有历史review都可以在Reviews区域查看
 - ✅ **状态清晰**：明确显示哪些问题已修复、哪些是新增的

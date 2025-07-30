@@ -778,12 +778,10 @@ class BugmentAction {
 
   private async createPullRequestReview(commentBody: string, reviewResult: ReviewResult): Promise<void> {
     // Determine the review event based on issues found
-    let event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT' = 'COMMENT';
+    // Note: GitHub Actions cannot APPROVE PRs, so we use COMMENT for no issues
+    let event: 'REQUEST_CHANGES' | 'COMMENT' = 'COMMENT';
 
-    if (reviewResult.totalIssues === 0) {
-      // No issues found - approve the PR
-      event = 'APPROVE';
-    } else {
+    if (reviewResult.totalIssues > 0) {
       // Issues found - determine severity
       const hasCriticalOrHighIssues = reviewResult.issues.some(
         issue => issue.severity === 'critical' || issue.severity === 'high'
@@ -795,6 +793,7 @@ class BugmentAction {
         event = 'COMMENT';
       }
     }
+    // For no issues, we keep event = 'COMMENT' with positive message
 
     await this.octokit.rest.pulls.createReview({
       owner: this.prInfo.owner,
