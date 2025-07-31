@@ -292,6 +292,8 @@ class BugmentAction {
   }
 
   private parseReviewResult(reviewResult: string): ReviewResult {
+    core.info("🔍 Starting to parse review result...");
+
     // Generate a unique review ID with PR association
     const prId = `pr${this.prInfo.number}`;
     const commitShort = this.prInfo.headSha.substring(0, 8);
@@ -299,25 +301,35 @@ class BugmentAction {
     const reviewId = `${prId}_${commitShort}_${timestampShort}`;
     const timestamp = new Date().toISOString();
 
+    // Log the review result for debugging (first 500 chars)
+    core.info(`📝 Review result preview: ${reviewResult.substring(0, 500)}...`);
+
     // Extract issues from the review result using regex patterns
     const issues: ReviewIssue[] = [];
 
     // Parse different types of issues from the review text
-    // Updated patterns to match the new prompt format
-    const bugPattern = /# Bugs[\s\S]*?(?=# |$)/g;
-    const smellPattern = /# Code Smells[\s\S]*?(?=# |$)/g;
-    const securityPattern = /# Security Issues[\s\S]*?(?=# |$)/g;
-    const performancePattern = /# Performance Issues[\s\S]*?(?=# |$)/g;
+    // Updated patterns to match the prompt.txt format exactly
+    const bugPattern = /# Bugs\s*\n([\s\S]*?)(?=\n# |$)/g;
+    const smellPattern = /# Code Smells\s*\n([\s\S]*?)(?=\n# |$)/g;
+    const securityPattern = /# Security Issues\s*\n([\s\S]*?)(?=\n# |$)/g;
+    const performancePattern = /# Performance Issues\s*\n([\s\S]*?)(?=\n# |$)/g;
 
     let issueId = 1;
 
     // Parse different issue types
+    core.info("🔍 Parsing bugs...");
     this.parseIssuesFromSection(reviewResult, bugPattern, 'bug', issues, issueId);
+
+    core.info("🔍 Parsing code smells...");
     this.parseIssuesFromSection(reviewResult, smellPattern, 'code_smell', issues, issueId);
+
+    core.info("🔍 Parsing security issues...");
     this.parseIssuesFromSection(reviewResult, securityPattern, 'security', issues, issueId);
+
+    core.info("🔍 Parsing performance issues...");
     this.parseIssuesFromSection(reviewResult, performancePattern, 'performance', issues, issueId);
 
-    return {
+    const result = {
       reviewId,
       timestamp,
       commitSha: this.prInfo.headSha,
@@ -325,31 +337,52 @@ class BugmentAction {
       issues,
       totalIssues: issues.length
     };
+
+    core.info(`✅ Parsing complete. Found ${result.totalIssues} total issues`);
+    return result;
   }
 
   private parseIssuesFromSection(reviewResult: string, pattern: RegExp, type: ReviewIssue['type'], issues: ReviewIssue[], issueId: number): void {
     const matches = reviewResult.match(pattern);
-    if (matches) {
-      matches.forEach(match => {
-        // Extract individual issues from the section
-        const issueMatches = match.match(/## \d+\. .+?(?=## \d+\.|$)/gs);
-        if (issueMatches) {
-          issueMatches.forEach(issueText => {
-            const issue = this.parseIssueFromText(issueText, type, `${type}_${issueId++}`);
-            if (issue) issues.push(issue);
-          });
-        }
-      });
+    if (matches && matches.length > 0) {
+      // The pattern now captures the content after the header, so we use matches[1] if it exists
+      const sectionContent = matches[0];
+      core.info(`🔍 Found ${type} section: ${sectionContent.substring(0, 100)}...`);
+
+      // Extract individual issues from the section content
+      const issueMatches = sectionContent.match(/## \d+\. .+?(?=## \d+\.|$)/gs);
+      if (issueMatches && issueMatches.length > 0) {
+        core.info(`📝 Found ${issueMatches.length} ${type} issues`);
+        issueMatches.forEach((issueText, index) => {
+          const issue = this.parseIssueFromText(issueText, type, `${type}_${issueId + index}`);
+          if (issue) {
+            issues.push(issue);
+            core.info(`✅ Parsed ${type} issue: ${issue.title}`);
+          } else {
+            core.warning(`⚠️ Failed to parse ${type} issue from text: ${issueText.substring(0, 100)}...`);
+          }
+        });
+      } else {
+        core.info(`ℹ️ No individual issues found in ${type} section`);
+      }
+    } else {
+      core.info(`ℹ️ No ${type} section found in review result`);
     }
   }
 
   private parseIssueFromText(text: string, type: ReviewIssue['type'], id: string): ReviewIssue | null {
+    core.info(`🔍 Parsing ${type} issue text: ${text.substring(0, 200)}...`);
+
     // Extract title from the issue heading
     const titleMatch = text.match(/## \d+\. (.+?)(?:\n|$)/);
-    if (!titleMatch) return null;
-    
-    const title = titleMatch[1].trim();
-    
+    if (!titleMatch) {
+      core.warning(`⚠️ No title found in ${type} issue text`);
+      return null;
+    }
+
+    const title = titleMatch[1]?.trim() || 'Unknown Issue';
+    core.info(`📝 Found ${type} issue title: ${title}`);
+
     // Extract severity, description, location, etc. from the text
     const severityMatch = text.match(/\*\*严重程度\*\*[：:]\s*🟡\s*\*\*(\w+)\*\*|\*\*严重程度\*\*[：:]\s*🟢\s*\*\*(\w+)\*\*|\*\*严重程度\*\*[：:]\s*🔴\s*\*\*(\w+)\*\*/);
     const locationMatch = text.match(/\*\*位置\*\*[：:]\s*(.+?)(?:\n|$)/);
@@ -357,7 +390,10 @@ class BugmentAction {
     const suggestionMatch = text.match(/\*\*建议修改\*\*[：:]\s*([\s\S]*?)(?=\*\*AI修复Prompt\*\*|$)/);
     const fixPromptMatch = text.match(/\*\*AI修复Prompt\*\*[：:]\s*```\s*([\s\S]*?)\s*```/);
 
-    if (!descriptionMatch || !descriptionMatch[1]) return null;
+    if (!descriptionMatch || !descriptionMatch[1]) {
+      core.warning(`⚠️ No description found in ${type} issue: ${title}`);
+      return null;
+    }
 
     const severityText = severityMatch?.[1] || severityMatch?.[2] || severityMatch?.[3] || 'medium';
     const severity = this.mapSeverity(severityText);
@@ -398,28 +434,32 @@ class BugmentAction {
     
     if (fileLineMatch) {
       const [, filePath, startLineStr, endLineStr] = fileLineMatch;
-      const startLine = parseInt(startLineStr, 10);
-      const endLine = endLineStr ? parseInt(endLineStr, 10) : undefined;
-      
-      return {
-        filePath: filePath.trim(),
-        lineNumber: endLine || startLine, // Use end line if available, otherwise start line
-        startLine,
-        endLine
-      };
+      if (filePath && startLineStr) {
+        const startLine = parseInt(startLineStr, 10);
+        const endLine = endLineStr ? parseInt(endLineStr, 10) : undefined;
+
+        return {
+          filePath: filePath.trim(),
+          lineNumber: endLine || startLine, // Use end line if available, otherwise start line
+          startLine,
+          endLine
+        };
+      }
     }
-    
+
     if (githubLineMatch) {
       const [, filePath, startLineStr, endLineStr] = githubLineMatch;
-      const startLine = parseInt(startLineStr, 10);
-      const endLine = endLineStr ? parseInt(endLineStr, 10) : undefined;
-      
-      return {
-        filePath: filePath.trim(),
-        lineNumber: endLine || startLine,
-        startLine,
-        endLine
-      };
+      if (filePath && startLineStr) {
+        const startLine = parseInt(startLineStr, 10);
+        const endLine = endLineStr ? parseInt(endLineStr, 10) : undefined;
+
+        return {
+          filePath: filePath.trim(),
+          lineNumber: endLine || startLine,
+          startLine,
+          endLine
+        };
+      }
     }
     
     return {};
@@ -567,7 +607,7 @@ class BugmentAction {
       });
 
       const reviewResults: ReviewResult[] = [];
-      const reviewsToDismiss: { id: number; nodeId: string }[] = [];
+      const reviewsToDismiss: { id: number; nodeId: string; state: string }[] = [];
 
       // Parse previous AI Code Review reviews and collect them for dismissing
       for (const review of reviews.data) {
@@ -579,7 +619,15 @@ class BugmentAction {
             if (reviewDataMatch && reviewDataMatch[1]) {
               const reviewData = JSON.parse(reviewDataMatch[1]);
               reviewResults.push(reviewData);
-              reviewsToDismiss.push({ id: review.id, nodeId: review.node_id });
+
+              // Only collect reviews that can be dismissed
+              // According to GitHub API docs, only PENDING reviews can be dismissed
+              // COMMENTED and REQUEST_CHANGES reviews cannot be dismissed
+              if (review.state === 'PENDING') {
+                reviewsToDismiss.push({ id: review.id, nodeId: review.node_id, state: review.state });
+              } else {
+                core.info(`Skipping dismiss for review ${review.id} with state: ${review.state} (cannot be dismissed)`);
+              }
             }
           } catch (error) {
             core.warning(`Failed to parse previous review data: ${error}`);
@@ -590,21 +638,25 @@ class BugmentAction {
       // Get previous line-level comments and mark resolved issues
       await this.markResolvedLineComments(reviewResults);
 
-      // Dismiss all previous AI Code Review reviews
-      for (const review of reviewsToDismiss) {
-        try {
-          await this.octokit.rest.pulls.dismissReview({
-            owner: this.prInfo.owner,
-            repo: this.prInfo.repo,
-            pull_number: this.prInfo.number,
-            review_id: review.id,
-            message: "Superseded by newer AI Code Review",
-            event: "DISMISS"
-          });
-          core.info(`Dismissed previous review: ${review.id}`);
-        } catch (error) {
-          core.warning(`Failed to dismiss review ${review.id}: ${error}`);
+      // Dismiss all previous AI Code Review reviews that can be dismissed
+      if (reviewsToDismiss.length > 0) {
+        core.info(`🗑️ Attempting to dismiss ${reviewsToDismiss.length} previous reviews`);
+        for (const review of reviewsToDismiss) {
+          try {
+            await this.octokit.rest.pulls.dismissReview({
+              owner: this.prInfo.owner,
+              repo: this.prInfo.repo,
+              pull_number: this.prInfo.number,
+              review_id: review.id,
+              message: "Superseded by newer AI Code Review"
+            });
+            core.info(`✅ Dismissed previous review: ${review.id} (state: ${review.state})`);
+          } catch (error) {
+            core.warning(`⚠️ Failed to dismiss review ${review.id}: ${error}`);
+          }
         }
+      } else {
+        core.info(`ℹ️ No previous reviews to dismiss`);
       }
 
       // Sort by timestamp (newest first)
@@ -919,7 +971,7 @@ class BugmentAction {
       if (issue.filePath && issue.lineNumber) {
         const commentBody = this.formatLineComment(issue);
         
-        const lineComment = {
+        const lineComment: any = {
           path: issue.filePath,
           line: issue.lineNumber,
           body: commentBody,

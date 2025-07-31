@@ -15,9 +15,12 @@ declare class BugmentAction {
     private performReview;
     private postReviewComment;
     private parseReviewResult;
+    private parseIssuesFromSection;
     private parseIssueFromText;
+    private parseLocationInfo;
     private mapSeverity;
     private extractTitleFromDescription;
+    private getFilesWithIssues;
     private getSeverityEmoji;
     private getTypeEmoji;
     private getTypeName;
@@ -25,11 +28,17 @@ declare class BugmentAction {
     private formatIssueForGitHub;
     private extractSummaryFromReview;
     private getPreviousReviewsAndDismissOld;
+    private markResolvedLineComments;
+    private isCommentStillRelevant;
     private compareReviews;
     private getIssueSignature;
     private issuesAreSimilar;
-    private formatReviewCommentWithStatus;
+    private formatMainReviewComment;
     private formatOriginalReviewContent;
+    private createLineComments;
+    private formatLineComment;
+    private getSeverityText;
+    private determineReviewEvent;
     private createPullRequestReview;
 }
 export { BugmentAction };
