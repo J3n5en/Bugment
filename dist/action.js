@@ -488,41 +488,37 @@ class BugmentAction {
         return {};
     }
     isLineInDiff(filePath, lineNumber) {
-        // Temporarily disable line validation to avoid GitHub API errors
-        // This ensures all line comments are skipped and only main review comment is posted
-        core.info(`🔍 Checking line ${filePath}:${lineNumber} - validation disabled for stability`);
-        return false;
-        // Original validation logic (commented out for now):
-        /*
+        core.info(`🔍 Checking line ${filePath}:${lineNumber} - validation enabled for PR commit range`);
         if (!this.parsedDiff || !filePath || !lineNumber) {
-          return false;
+            core.info(`❌ Missing diff data or invalid parameters`);
+            return false;
         }
-    
         const hunks = this.parsedDiff.files.get(filePath);
         if (!hunks || hunks.length === 0) {
-          return false;
+            core.info(`❌ No hunks found for file: ${filePath}`);
+            return false;
         }
-    
         // Check if the line number falls within any hunk's new line range
         for (const hunk of hunks) {
-          const hunkEndLine = hunk.newStart + hunk.newLines - 1;
-          if (lineNumber >= hunk.newStart && lineNumber <= hunkEndLine) {
-            // Additional check: make sure the line is actually modified (not just context)
-            let currentNewLine = hunk.newStart;
-            for (const hunkLine of hunk.lines) {
-              if (hunkLine.startsWith('+') || hunkLine.startsWith(' ')) {
-                if (currentNewLine === lineNumber) {
-                  // Line is in diff and is either added or context
-                  return hunkLine.startsWith('+') || hunkLine.startsWith(' ');
+            const hunkEndLine = hunk.newStart + hunk.newLines - 1;
+            core.info(`🔍 Checking hunk range: ${hunk.newStart}-${hunkEndLine} for line ${lineNumber}`);
+            if (lineNumber >= hunk.newStart && lineNumber <= hunkEndLine) {
+                // For PR review, we want to allow comments on any line within the diff range
+                // This includes added lines (+), removed lines (-), and context lines ( )
+                let currentNewLine = hunk.newStart;
+                for (const hunkLine of hunk.lines) {
+                    if (hunkLine.startsWith('+') || hunkLine.startsWith(' ')) {
+                        if (currentNewLine === lineNumber) {
+                            core.info(`✅ Line ${lineNumber} found in diff range`);
+                            return true; // Allow comments on any line in the PR diff
+                        }
+                        currentNewLine++;
+                    }
                 }
-                currentNewLine++;
-              }
             }
-          }
         }
-    
+        core.info(`❌ Line ${lineNumber} not found in any diff hunk for ${filePath}`);
         return false;
-        */
     }
     mapSeverity(severityText) {
         const lowerText = severityText.toLowerCase();
