@@ -35,11 +35,10 @@ declare class BugmentAction {
     private issuesAreSimilar;
     private formatMainReviewComment;
     private formatOriginalReviewContent;
-    private createLineComments;
     private formatLineComment;
     private getSeverityText;
     private determineReviewEvent;
-    private createPullRequestReview;
+    private createUnifiedPullRequestReview;
 }
 export { BugmentAction };
 //# sourceMappingURL=action.d.ts.map

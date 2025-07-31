@@ -209,11 +209,9 @@ class BugmentAction {
         const previousReviews = await this.getPreviousReviewsAndDismissOld();
         // Compare with previous reviews to identify fixed/new issues
         const comparison = this.compareReviews(parsedResult, previousReviews);
-        // Create line-level review comments first
-        await this.createLineComments(parsedResult);
-        // Then create the main review with overview
+        // Create a unified review with both overview and line comments
         const commentBody = this.formatMainReviewComment(parsedResult, comparison);
-        await this.createPullRequestReview(commentBody, parsedResult);
+        await this.createUnifiedPullRequestReview(commentBody, parsedResult);
         core.info("✅ Review posted");
     }
     parseReviewResult(reviewResult) {
@@ -793,39 +791,6 @@ class BugmentAction {
         }
         return content;
     }
-    async createLineComments(reviewResult) {
-        const lineComments = [];
-        // Create line-level comments for each issue
-        for (const issue of reviewResult.issues) {
-            if (issue.filePath && issue.lineNumber) {
-                const commentBody = this.formatLineComment(issue);
-                const lineComment = {
-                    path: issue.filePath,
-                    line: issue.lineNumber,
-                    body: commentBody,
-                    side: 'RIGHT'
-                };
-                // Add multi-line support if available
-                if (issue.startLine && issue.endLine && issue.startLine !== issue.endLine) {
-                    lineComment.start_line = issue.startLine;
-                    lineComment.start_side = 'RIGHT';
-                }
-                lineComments.push(lineComment);
-            }
-        }
-        // Create review with line comments if there are any
-        if (lineComments.length > 0) {
-            const event = this.determineReviewEvent(reviewResult);
-            await this.octokit.rest.pulls.createReview({
-                owner: this.prInfo.owner,
-                repo: this.prInfo.repo,
-                pull_number: this.prInfo.number,
-                event: event,
-                commit_id: this.prInfo.headSha,
-                comments: lineComments
-            });
-        }
-    }
     formatLineComment(issue) {
         const severityText = this.getSeverityText(issue.severity);
         let comment = `**${this.getTypeEmoji(issue.type)} ${this.getTypeName(issue.type)}** - ${this.getSeverityEmoji(issue.severity)} ${severityText}\n\n`;
@@ -858,17 +823,47 @@ class BugmentAction {
         }
         return 'COMMENT';
     }
-    async createPullRequestReview(commentBody, reviewResult) {
-        // This creates the main review comment (overview)
+    async createUnifiedPullRequestReview(commentBody, reviewResult) {
+        // Create line-level comments for issues with file locations
+        const lineComments = [];
+        // Create line-level comments for each issue
+        for (const issue of reviewResult.issues) {
+            if (issue.filePath && issue.lineNumber) {
+                const lineCommentBody = this.formatLineComment(issue);
+                const lineComment = {
+                    path: issue.filePath,
+                    line: issue.lineNumber,
+                    body: lineCommentBody,
+                    side: 'RIGHT'
+                };
+                // Add multi-line support if available
+                if (issue.startLine && issue.endLine && issue.startLine !== issue.endLine) {
+                    lineComment.start_line = issue.startLine;
+                    lineComment.start_side = 'RIGHT';
+                }
+                lineComments.push(lineComment);
+            }
+        }
+        // Determine the review event based on issues found
         const event = this.determineReviewEvent(reviewResult);
-        await this.octokit.rest.pulls.createReview({
+        // Create a single unified review with both overview and line comments
+        const reviewParams = {
             owner: this.prInfo.owner,
             repo: this.prInfo.repo,
             pull_number: this.prInfo.number,
             body: commentBody,
             event: event,
             commit_id: this.prInfo.headSha
-        });
+        };
+        // Add line comments if any exist
+        if (lineComments.length > 0) {
+            reviewParams.comments = lineComments;
+            core.info(`📝 Creating unified review with ${lineComments.length} line comments`);
+        }
+        else {
+            core.info(`📝 Creating review with overview only (no line comments)`);
+        }
+        await this.octokit.rest.pulls.createReview(reviewParams);
     }
 }
 exports.BugmentAction = BugmentAction;
