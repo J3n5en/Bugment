@@ -1,0 +1,121 @@
+# Bugment 文件差异检查忽略配置
+# 此文件定义了在代码审查时应该跳过的文件和目录
+# 支持 glob 模式匹配，语法类似 .gitignore
+
+# ===== 依赖锁定文件 =====
+# 这些文件通常由包管理器自动生成，不需要人工审查
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+composer.lock
+Pipfile.lock
+poetry.lock
+Cargo.lock
+go.sum
+
+# ===== 依赖目录 =====
+# 第三方依赖包目录
+node_modules/**
+vendor/**
+.pnp/**
+
+# ===== 构建输出目录 =====
+# 编译和构建生成的文件
+dist/**
+build/**
+out/**
+target/**
+.next/**
+.nuxt/**
+.output/**
+public/build/**
+
+# ===== 系统文件 =====
+# 操作系统生成的文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 日志文件 =====
+# 各种日志文件
+*.log
+logs/**
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ===== 环境变量文件 =====
+# 本地环境配置文件
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ===== 缓存目录 =====
+# 各种缓存文件和目录
+.cache/**
+.tmp/**
+.temp/**
+tmp/**
+temp/**
+.parcel-cache/**
+
+# ===== IDE 和编辑器文件 =====
+# 编辑器配置和临时文件
+.vscode/**
+.idea/**
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# ===== 测试覆盖率 =====
+# 测试覆盖率报告
+coverage/**
+.nyc_output/**
+*.lcov
+.coverage/**
+
+# ===== 编译缓存 =====
+# TypeScript 和其他编译器缓存
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+
+# ===== 文档生成 =====
+# 自动生成的文档
+docs/api/**
+docs/build/**
+
+# ===== 其他常见忽略 =====
+# 其他不需要审查的文件
+*.min.js
+*.min.css
+*.map
+*.d.ts.map
+
+# ===== 自定义忽略模式示例 =====
+# 您可以在这里添加项目特定的忽略模式
+
+# 忽略特定的配置文件
+# config/local.json
+
+# 忽略特定目录下的所有文件
+# temp-data/**
+
+# 忽略特定扩展名的文件
+# *.backup
+
+# 忽略以特定前缀开头的文件
+# temp-*
+
+# 注意：
+# 1. 以 # 开头的行是注释
+# 2. 空行会被忽略
+# 3. 支持 glob 模式：
+#    - * 匹配除路径分隔符外的任意字符
+#    - ** 匹配任意深度的目录
+#    - ? 匹配单个字符
+# 4. 路径相对于项目根目录

@@ -6,6 +6,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
 import { performCodeReview, ReviewOptions } from "./review";
+import { IgnoreManager } from "./ignore-manager";
 
 interface ActionInputs {
   augmentAccessToken: string;
@@ -76,6 +77,7 @@ class BugmentAction {
   private octokit: ReturnType<typeof github.getOctokit>;
   private prInfo: PullRequestInfo;
   private parsedDiff?: ParsedDiff;
+  private ignoreManager?: IgnoreManager;
 
   constructor() {
     this.inputs = this.parseInputs();
@@ -116,6 +118,13 @@ class BugmentAction {
   async run(): Promise<void> {
     try {
       core.info("🚀 Starting Bugment AI Code Review...");
+
+      // Initialize ignore manager
+      const workspaceDir = this.getWorkspaceDirectory();
+      this.ignoreManager = new IgnoreManager(workspaceDir);
+      core.info(
+        `📋 Initialized ignore manager with ${this.ignoreManager.getPatterns().length} patterns`
+      );
 
       // Setup Augment authentication
       await this.setupAugmentAuth();
@@ -454,6 +463,19 @@ class BugmentAction {
         const match = line.match(/diff --git a\/(.+) b\/(.+)/);
         if (match && match[2]) {
           currentFile = match[2]; // Use the new file path
+
+          // Check if file should be ignored
+          if (
+            this.ignoreManager &&
+            this.ignoreManager.shouldIgnore(currentFile)
+          ) {
+            // Skip this file entirely - find the next file header
+            currentFile = "";
+            currentHunk = null;
+            i++;
+            continue;
+          }
+
           core.info(`📁 Found file in diff: ${currentFile}`);
           if (!files.has(currentFile)) {
             files.set(currentFile, []);
@@ -491,6 +513,7 @@ class BugmentAction {
       // Content lines
       else if (
         currentHunk &&
+        currentFile && // Only process if we have a valid current file (not ignored)
         (line.startsWith("+") || line.startsWith("-") || line.startsWith(" "))
       ) {
         currentHunk.lines.push(line);
@@ -506,7 +529,7 @@ class BugmentAction {
       0
     );
     core.info(
-      `📊 Diff parsing complete: ${fileCount} files, ${totalHunks} hunks`
+      `📊 Diff parsing complete: ${fileCount} files, ${totalHunks} hunks (after applying ignore filters)`
     );
 
     // Log each file and its hunks for debugging
