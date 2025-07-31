@@ -1142,95 +1142,90 @@ class BugmentAction {
 
   private async hidePreviousBugmentComments(): Promise<void> {
     try {
-      core.info("🔍 Looking for previous Bugment comments to hide...");
+      core.info("🔍 Looking for previous Bugment reviews to hide...");
 
-      // Get current time to avoid hiding very recent comments (within last 30 seconds)
+      // Get current time to avoid hiding very recent reviews (within last 30 seconds)
       const cutoffTime = new Date(Date.now() - 30000); // 30 seconds ago
 
-      // Get all issue comments (PR comments)
-      const issueComments = await this.octokit.rest.issues.listComments({
-        owner: this.prInfo.owner,
-        repo: this.prInfo.repo,
-        issue_number: this.prInfo.number,
-        per_page: 100, // Get more comments to ensure we catch all
-      });
-
-      // Get all review comments (line-level comments)
-      const reviewComments = await this.octokit.rest.pulls.listReviewComments({
+      // Get all reviews on this PR
+      const reviews = await this.octokit.rest.pulls.listReviews({
         owner: this.prInfo.owner,
         repo: this.prInfo.repo,
         pull_number: this.prInfo.number,
-        per_page: 100, // Get more comments to ensure we catch all
       });
 
-      const commentsToHide: Array<{
+      const reviewsToHide: Array<{
         id: string;
-        type: "issue" | "review";
+        nodeId: string;
         url: string;
         createdAt: string;
+        state: string;
       }> = [];
 
-      // Check issue comments for Bugment signatures
-      for (const comment of issueComments.data) {
-        const commentDate = new Date(comment.created_at);
+      // Check reviews for Bugment signature
+      for (const review of reviews.data) {
+        const reviewDate = new Date(
+          review.submitted_at || new Date().toISOString()
+        );
         if (
-          this.isBugmentComment(comment.body || "") &&
-          commentDate < cutoffTime
+          this.isBugmentReview(review.body || "") &&
+          reviewDate < cutoffTime &&
+          review.state !== "DISMISSED"
         ) {
-          commentsToHide.push({
-            id: comment.node_id,
-            type: "issue",
-            url: comment.html_url,
-            createdAt: comment.created_at,
+          reviewsToHide.push({
+            id: review.id.toString(),
+            nodeId: review.node_id,
+            url: review.html_url,
+            createdAt: review.submitted_at || new Date().toISOString(),
+            state: review.state,
           });
         }
       }
 
-      // Check review comments for Bugment signatures
-      for (const comment of reviewComments.data) {
-        const commentDate = new Date(comment.created_at);
-        if (
-          this.isBugmentComment(comment.body || "") &&
-          commentDate < cutoffTime
-        ) {
-          commentsToHide.push({
-            id: comment.node_id,
-            type: "review",
-            url: comment.html_url,
-            createdAt: comment.created_at,
-          });
-        }
-      }
-
-      if (commentsToHide.length > 0) {
+      if (reviewsToHide.length > 0) {
         core.info(
-          `📝 Found ${commentsToHide.length} previous Bugment comments to hide`
+          `📝 Found ${reviewsToHide.length} previous Bugment reviews to hide`
         );
 
         let hiddenCount = 0;
-        for (const comment of commentsToHide) {
+        for (const review of reviewsToHide) {
           try {
-            await this.minimizeComment(comment.id);
+            await this.minimizeComment(review.nodeId);
             hiddenCount++;
             core.info(
-              `✅ Hidden ${comment.type} comment from ${comment.createdAt}: ${comment.url}`
+              `✅ Hidden review (${review.state}) from ${review.createdAt}: ${review.url}`
             );
           } catch (error) {
-            core.warning(
-              `⚠️ Failed to hide ${comment.type} comment ${comment.id}: ${error}`
-            );
+            core.warning(`⚠️ Failed to hide review ${review.id}: ${error}`);
           }
         }
 
         core.info(
-          `🎯 Successfully hidden ${hiddenCount}/${commentsToHide.length} previous Bugment comments`
+          `🎯 Successfully hidden ${hiddenCount}/${reviewsToHide.length} previous Bugment reviews`
         );
       } else {
-        core.info("ℹ️ No previous Bugment comments found to hide");
+        core.info("ℹ️ No previous Bugment reviews found to hide");
       }
     } catch (error) {
-      core.warning(`Failed to hide previous Bugment comments: ${error}`);
+      core.warning(`Failed to hide previous Bugment reviews: ${error}`);
     }
+  }
+
+  private isBugmentReview(body: string): boolean {
+    // Check specifically for the Bugment review signature
+    const bugmentReviewSignature =
+      "🤖 Powered by [Bugment AI Code Review](https://github.com/J3n5en/Bugment)";
+
+    // Also check for other Bugment review signatures as fallback
+    const bugmentSignatures = [
+      bugmentReviewSignature,
+      "Bugment Code Review",
+      "Bugment AI Code Review",
+      "🤖 Powered by Bugment",
+      "REVIEW_DATA:",
+    ];
+
+    return bugmentSignatures.some((signature) => body.includes(signature));
   }
 
   private isBugmentComment(body: string): boolean {
