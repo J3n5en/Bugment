@@ -39,6 +39,19 @@ interface ReviewIssue {
   diffHunk?: string;
 }
 
+interface DiffHunk {
+  filePath: string;
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  lines: string[];
+}
+
+interface ParsedDiff {
+  files: Map<string, DiffHunk[]>;
+}
+
 interface ReviewResult {
   reviewId: string;
   timestamp: string;
@@ -64,6 +77,7 @@ class BugmentAction {
   private inputs: ActionInputs;
   private octokit: ReturnType<typeof github.getOctokit>;
   private prInfo: PullRequestInfo;
+  private parsedDiff?: ParsedDiff;
 
   constructor() {
     this.inputs = this.parseInputs();
@@ -163,6 +177,49 @@ class BugmentAction {
     return process.env.GITHUB_WORKSPACE || process.cwd();
   }
 
+  private async getActualBaseSha(workspaceDir: string): Promise<string> {
+    // For PR events, github.sha is the merge commit
+    // We need to get the first parent (base branch SHA) of this merge commit
+    return new Promise((resolve, reject) => {
+      const gitProcess = spawn(
+        "git",
+        ["rev-parse", `${process.env.GITHUB_SHA}^1`],
+        {
+          cwd: workspaceDir,
+          stdio: ["pipe", "pipe", "pipe"],
+        }
+      );
+
+      let stdout = "";
+      let stderr = "";
+
+      gitProcess.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      gitProcess.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      gitProcess.on("close", (code: number) => {
+        if (code === 0) {
+          const actualBaseSha = stdout.trim();
+          resolve(actualBaseSha);
+        } else {
+          core.warning(`Failed to get actual base SHA: ${stderr}`);
+          // Fallback to original base SHA
+          resolve(this.prInfo.baseSha);
+        }
+      });
+
+      gitProcess.on("error", (error: Error) => {
+        core.warning(`Error getting actual base SHA: ${error.message}`);
+        // Fallback to original base SHA
+        resolve(this.prInfo.baseSha);
+      });
+    });
+  }
+
   private async generateDiffFile(): Promise<string> {
     core.info("📄 Generating PR diff file...");
 
@@ -170,25 +227,29 @@ class BugmentAction {
     const diffPath = path.join(workspaceDir, "pr_diff.patch");
 
     core.info(`📁 Using workspace directory: ${workspaceDir}`);
-    core.info(`🔍 Comparing ${this.prInfo.baseSha}...${this.prInfo.headSha}`);
 
+    // Get the correct base SHA for the PR diff
+    const actualBaseSha = await this.getActualBaseSha(workspaceDir);
+    core.info(`🔍 Comparing ${actualBaseSha}...${this.prInfo.headSha}`);
+    core.info(`📝 Original base SHA: ${this.prInfo.baseSha} (PR creation time)`);
+    core.info(`📝 Actual base SHA: ${actualBaseSha} (merge commit base)`);
+
+    let diffContent: string;
     try {
       // Method 1: Try to use git diff locally (most accurate)
-      const diffContent = await this.generateLocalDiff(workspaceDir);
+      diffContent = await this.generateLocalDiffWithCorrectBase(workspaceDir, actualBaseSha);
       await fs.promises.writeFile(diffPath, diffContent);
       core.info(`✅ Diff file generated using local git: ${diffPath}`);
-      return diffPath;
     } catch (localError) {
       const errorMessage =
         localError instanceof Error ? localError.message : String(localError);
       core.warning(`Local git diff failed: ${errorMessage}`);
 
-      // Method 2: Fallback to GitHub API
+      // Method 2: Fallback to GitHub API with correct base
       try {
-        const diffContent = await this.generateApiDiff();
+        diffContent = await this.generateApiDiffWithCorrectBase(actualBaseSha);
         await fs.promises.writeFile(diffPath, diffContent);
         core.info(`✅ Diff file generated using GitHub API: ${diffPath}`);
-        return diffPath;
       } catch (apiError) {
         const apiErrorMessage =
           apiError instanceof Error ? apiError.message : String(apiError);
@@ -196,6 +257,48 @@ class BugmentAction {
         throw new Error(`Failed to generate diff: ${apiErrorMessage}`);
       }
     }
+
+    // Parse the diff content for line validation
+    this.parsedDiff = this.parseDiffContent(diffContent);
+    core.info(`📊 Parsed diff for ${this.parsedDiff.files.size} files`);
+
+    return diffPath;
+  }
+
+  private async generateLocalDiffWithCorrectBase(workspaceDir: string, baseSha: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const gitProcess = spawn(
+        "git",
+        ["diff", `${baseSha}...${this.prInfo.headSha}`],
+        {
+          cwd: workspaceDir,
+          stdio: ["pipe", "pipe", "pipe"],
+        }
+      );
+
+      let stdout = "";
+      let stderr = "";
+
+      gitProcess.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      gitProcess.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      gitProcess.on("close", (code: number) => {
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          reject(new Error(`Git diff failed with code ${code}: ${stderr}`));
+        }
+      });
+
+      gitProcess.on("error", (error: Error) => {
+        reject(error);
+      });
+    });
   }
 
   private async generateLocalDiff(workspaceDir: string): Promise<string> {
@@ -234,6 +337,20 @@ class BugmentAction {
     });
   }
 
+  private async generateApiDiffWithCorrectBase(baseSha: string): Promise<string> {
+    const diffResponse = await this.octokit.rest.repos.compareCommits({
+      owner: this.prInfo.owner,
+      repo: this.prInfo.repo,
+      base: baseSha,
+      head: this.prInfo.headSha,
+      mediaType: {
+        format: "diff",
+      },
+    });
+
+    return diffResponse.data as unknown as string;
+  }
+
   private async generateApiDiff(): Promise<string> {
     const diffResponse = await this.octokit.rest.repos.compareCommits({
       owner: this.prInfo.owner,
@@ -246,6 +363,64 @@ class BugmentAction {
     });
 
     return diffResponse.data as unknown as string;
+  }
+
+  private parseDiffContent(diffContent: string): ParsedDiff {
+    const files = new Map<string, DiffHunk[]>();
+    const lines = diffContent.split('\n');
+
+    let currentFile = '';
+    let currentHunk: DiffHunk | null = null;
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      if (!line) {
+        i++;
+        continue;
+      }
+
+      // File header: diff --git a/file b/file
+      if (line.startsWith('diff --git')) {
+        const match = line.match(/diff --git a\/(.+) b\/(.+)/);
+        if (match && match[2]) {
+          currentFile = match[2]; // Use the new file path
+          if (!files.has(currentFile)) {
+            files.set(currentFile, []);
+          }
+        }
+      }
+      // Hunk header: @@ -oldStart,oldLines +newStart,newLines @@
+      else if (line.startsWith('@@')) {
+        const match = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+        if (match && currentFile && match[1] && match[3]) {
+          const oldStart = parseInt(match[1], 10);
+          const oldLines = match[2] ? parseInt(match[2], 10) : 1;
+          const newStart = parseInt(match[3], 10);
+          const newLines = match[4] ? parseInt(match[4], 10) : 1;
+
+          currentHunk = {
+            filePath: currentFile,
+            oldStart,
+            oldLines,
+            newStart,
+            newLines,
+            lines: []
+          };
+
+          files.get(currentFile)!.push(currentHunk);
+        }
+      }
+      // Content lines
+      else if (currentHunk && (line.startsWith('+') || line.startsWith('-') || line.startsWith(' '))) {
+        currentHunk.lines.push(line);
+      }
+
+      i++;
+    }
+
+    return { files };
   }
 
   private async performReview(diffPath: string): Promise<string> {
@@ -460,6 +635,37 @@ class BugmentAction {
     }
     
     return {};
+  }
+
+  private isLineInDiff(filePath: string, lineNumber: number): boolean {
+    if (!this.parsedDiff || !filePath || !lineNumber) {
+      return false;
+    }
+
+    const hunks = this.parsedDiff.files.get(filePath);
+    if (!hunks || hunks.length === 0) {
+      return false;
+    }
+
+    // Check if the line number falls within any hunk's new line range
+    for (const hunk of hunks) {
+      const hunkEndLine = hunk.newStart + hunk.newLines - 1;
+      if (lineNumber >= hunk.newStart && lineNumber <= hunkEndLine) {
+        // Additional check: make sure the line is actually modified (not just context)
+        let currentNewLine = hunk.newStart;
+        for (const hunkLine of hunk.lines) {
+          if (hunkLine.startsWith('+') || hunkLine.startsWith(' ')) {
+            if (currentNewLine === lineNumber) {
+              // Line is in diff and is either added or context
+              return hunkLine.startsWith('+') || hunkLine.startsWith(' ');
+            }
+            currentNewLine++;
+          }
+        }
+      }
+    }
+
+    return false;
   }
 
   private mapSeverity(severityText: string): ReviewIssue['severity'] {
@@ -1008,9 +1214,19 @@ class BugmentAction {
       side?: 'LEFT' | 'RIGHT';
     }> = [];
 
+    let validLineComments = 0;
+    let invalidLineComments = 0;
+
     // Create line-level comments for each issue
     for (const issue of reviewResult.issues) {
       if (issue.filePath && issue.lineNumber) {
+        // Validate that the line is within the diff
+        if (!this.isLineInDiff(issue.filePath, issue.lineNumber)) {
+          core.warning(`⚠️ Skipping line comment for ${issue.filePath}:${issue.lineNumber} - not in diff range`);
+          invalidLineComments++;
+          continue;
+        }
+
         const lineCommentBody = this.formatLineComment(issue);
 
         const lineComment: any = {
@@ -1020,15 +1236,22 @@ class BugmentAction {
           side: 'RIGHT' as const
         };
 
-        // Add multi-line support if available
+        // Add multi-line support if available (also validate start line)
         if (issue.startLine && issue.endLine && issue.startLine !== issue.endLine) {
-          lineComment.start_line = issue.startLine;
-          lineComment.start_side = 'RIGHT';
+          if (this.isLineInDiff(issue.filePath, issue.startLine)) {
+            lineComment.start_line = issue.startLine;
+            lineComment.start_side = 'RIGHT';
+          } else {
+            core.warning(`⚠️ Start line ${issue.startLine} not in diff, using single line comment`);
+          }
         }
 
         lineComments.push(lineComment);
+        validLineComments++;
       }
     }
+
+    core.info(`📊 Line comments: ${validLineComments} valid, ${invalidLineComments} skipped (not in diff)`);
 
     // Determine the review event based on issues found
     const event = this.determineReviewEvent(reviewResult);
