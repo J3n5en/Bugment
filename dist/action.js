@@ -116,10 +116,20 @@ class BugmentAction {
         return process.env.GITHUB_WORKSPACE || process.cwd();
     }
     async getActualBaseSha(workspaceDir) {
-        // For PR events, github.sha is the merge commit
-        // We need to get the first parent (base branch SHA) of this merge commit
-        return new Promise((resolve, reject) => {
-            const gitProcess = (0, child_process_1.spawn)("git", ["rev-parse", `${process.env.GITHUB_SHA}^1`], {
+        const githubSha = process.env.GITHUB_SHA;
+        if (!githubSha) {
+            core.info("📝 No GITHUB_SHA found, using original base SHA");
+            return this.prInfo.baseSha;
+        }
+        // First check if this is a merge commit
+        const isMergeCommit = await this.checkIfMergeCommit(workspaceDir, githubSha);
+        if (!isMergeCommit) {
+            core.info("📝 GITHUB_SHA is not a merge commit, using original base SHA");
+            return this.prInfo.baseSha;
+        }
+        // Try to get the first parent of the merge commit
+        return new Promise((resolve) => {
+            const gitProcess = (0, child_process_1.spawn)("git", ["rev-parse", `${githubSha}^1`], {
                 cwd: workspaceDir,
                 stdio: ["pipe", "pipe", "pipe"],
             });
@@ -134,18 +144,47 @@ class BugmentAction {
             gitProcess.on("close", (code) => {
                 if (code === 0) {
                     const actualBaseSha = stdout.trim();
+                    core.info(`📝 Successfully extracted actual base SHA: ${actualBaseSha}`);
                     resolve(actualBaseSha);
                 }
                 else {
-                    core.warning(`Failed to get actual base SHA: ${stderr}`);
-                    // Fallback to original base SHA
+                    core.info(`📝 Could not extract base SHA from merge commit, using original base SHA`);
+                    core.debug(`Git error: ${stderr}`);
                     resolve(this.prInfo.baseSha);
                 }
             });
             gitProcess.on("error", (error) => {
-                core.warning(`Error getting actual base SHA: ${error.message}`);
-                // Fallback to original base SHA
+                core.info(`📝 Git command failed, using original base SHA`);
+                core.debug(`Git error: ${error.message}`);
                 resolve(this.prInfo.baseSha);
+            });
+        });
+    }
+    async checkIfMergeCommit(workspaceDir, sha) {
+        return new Promise((resolve) => {
+            const gitProcess = (0, child_process_1.spawn)("git", ["cat-file", "-p", sha], {
+                cwd: workspaceDir,
+                stdio: ["pipe", "pipe", "pipe"],
+            });
+            let stdout = "";
+            gitProcess.stdout.on("data", (data) => {
+                stdout += data.toString();
+            });
+            gitProcess.on("close", (code) => {
+                if (code === 0) {
+                    // Count parent lines - merge commits have multiple parent lines
+                    const parentLines = stdout.split('\n').filter(line => line.startsWith('parent '));
+                    const isMerge = parentLines.length > 1;
+                    core.debug(`📝 Commit ${sha} has ${parentLines.length} parents, is merge: ${isMerge}`);
+                    resolve(isMerge);
+                }
+                else {
+                    core.debug(`📝 Could not check commit type for ${sha}`);
+                    resolve(false);
+                }
+            });
+            gitProcess.on("error", () => {
+                resolve(false);
             });
         });
     }

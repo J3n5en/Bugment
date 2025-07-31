@@ -11,6 +11,7 @@ declare class BugmentAction {
     private setupAugmentAuth;
     private getWorkspaceDirectory;
     private getActualBaseSha;
+    private checkIfMergeCommit;
     private generateDiffFile;
     private generateLocalDiffWithCorrectBase;
     private generateLocalDiff;
