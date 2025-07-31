@@ -342,7 +342,7 @@ export class AugmentIPCClient extends EventEmitter {
 }
 
 async function loadPromptTemplate(): Promise<string> {
-  const promptPath = path.join(__dirname, "prompt.txt");
+  const promptPath = path.join(__dirname, "prompt.md");
   return fs.readFileSync(promptPath, "utf-8");
 }
 

@@ -549,8 +549,8 @@ class BugmentAction {
     // Parse the review result to extract structured data
     const parsedResult = this.parseReviewResult(reviewResult);
 
-    // Get previous review results for comparison and dismiss old reviews
-    const previousReviews = await this.getPreviousReviewsAndDismissOld();
+    // Get previous review results for comparison and hide old reviews
+    const previousReviews = await this.getPreviousReviewsAndHideOld();
 
     // Compare with previous reviews to identify fixed/new issues
     const comparison = this.compareReviews(parsedResult, previousReviews);
@@ -579,7 +579,7 @@ class BugmentAction {
     const issues: ReviewIssue[] = [];
 
     // Parse different types of issues from the review text
-    // Updated patterns to match the prompt.txt format exactly
+    // Updated patterns to match the prompt.md format exactly
     const bugPattern = /# Bugs\s*\n([\s\S]*?)(?=\n# |$)/g;
     const smellPattern = /# Code Smells\s*\n([\s\S]*?)(?=\n# |$)/g;
     const securityPattern = /# Security Issues\s*\n([\s\S]*?)(?=\n# |$)/g;
@@ -1049,7 +1049,7 @@ class BugmentAction {
     return "";
   }
 
-  private async getPreviousReviewsAndDismissOld(): Promise<ReviewResult[]> {
+  private async getPreviousReviewsAndHideOld(): Promise<ReviewResult[]> {
     try {
       // Get all reviews on this PR
       const reviews = await this.octokit.rest.pulls.listReviews({
@@ -1059,10 +1059,8 @@ class BugmentAction {
       });
 
       const reviewResults: ReviewResult[] = [];
-      const reviewsToDismiss: { id: number; nodeId: string; state: string }[] =
-        [];
 
-      // Parse previous AI Code Review reviews and collect them for dismissing
+      // Parse previous AI Code Review reviews
       for (const review of reviews.data) {
         if (
           review.body?.includes("Bugment Code Review") &&
@@ -1076,21 +1074,6 @@ class BugmentAction {
             if (reviewDataMatch && reviewDataMatch[1]) {
               const reviewData = JSON.parse(reviewDataMatch[1]);
               reviewResults.push(reviewData);
-
-              // Only collect reviews that can be dismissed
-              // According to GitHub API docs, only PENDING reviews can be dismissed
-              // COMMENTED and REQUEST_CHANGES reviews cannot be dismissed
-              if (review.state === "PENDING") {
-                reviewsToDismiss.push({
-                  id: review.id,
-                  nodeId: review.node_id,
-                  state: review.state,
-                });
-              } else {
-                core.info(
-                  `Skipping dismiss for review ${review.id} with state: ${review.state} (cannot be dismissed)`
-                );
-              }
             }
           } catch (error) {
             core.warning(`Failed to parse previous review data: ${error}`);
@@ -1098,36 +1081,11 @@ class BugmentAction {
         }
       }
 
-      // Hide (minimize) previous Bugment comments as outdated
+      // Hide (minimize) previous Bugment reviews as outdated
       await this.hidePreviousBugmentComments();
 
       // Get previous line-level comments and mark resolved issues
       await this.markResolvedLineComments(reviewResults);
-
-      // Dismiss all previous AI Code Review reviews that can be dismissed
-      if (reviewsToDismiss.length > 0) {
-        core.info(
-          `🗑️ Attempting to dismiss ${reviewsToDismiss.length} previous reviews`
-        );
-        for (const review of reviewsToDismiss) {
-          try {
-            await this.octokit.rest.pulls.dismissReview({
-              owner: this.prInfo.owner,
-              repo: this.prInfo.repo,
-              pull_number: this.prInfo.number,
-              review_id: review.id,
-              message: "Superseded by newer AI Code Review",
-            });
-            core.info(
-              `✅ Dismissed previous review: ${review.id} (state: ${review.state})`
-            );
-          } catch (error) {
-            core.warning(`⚠️ Failed to dismiss review ${review.id}: ${error}`);
-          }
-        }
-      } else {
-        core.info(`ℹ️ No previous reviews to dismiss`);
-      }
 
       // Sort by timestamp (newest first)
       return reviewResults.sort(
@@ -1223,23 +1181,6 @@ class BugmentAction {
       "Bugment AI Code Review",
       "🤖 Powered by Bugment",
       "REVIEW_DATA:",
-    ];
-
-    return bugmentSignatures.some((signature) => body.includes(signature));
-  }
-
-  private isBugmentComment(body: string): boolean {
-    // Check for various Bugment signatures in comment body
-    const bugmentSignatures = [
-      "Bugment Code Review",
-      "Bugment AI Code Review",
-      "🤖 Powered by Bugment",
-      "REVIEW_DATA:",
-      // Add signatures for line-level comments
-      "**🐛 潜在 Bug**",
-      "**🔍 代码异味**",
-      "**🔒 安全问题**",
-      "**⚡ 性能问题**",
     ];
 
     return bugmentSignatures.some((signature) => body.includes(signature));
