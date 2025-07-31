@@ -638,6 +638,13 @@ class BugmentAction {
   }
 
   private isLineInDiff(filePath: string, lineNumber: number): boolean {
+    // Temporarily disable line validation to avoid GitHub API errors
+    // This ensures all line comments are skipped and only main review comment is posted
+    core.info(`🔍 Checking line ${filePath}:${lineNumber} - validation disabled for stability`);
+    return false;
+
+    // Original validation logic (commented out for now):
+    /*
     if (!this.parsedDiff || !filePath || !lineNumber) {
       return false;
     }
@@ -666,6 +673,7 @@ class BugmentAction {
     }
 
     return false;
+    */
   }
 
   private mapSeverity(severityText: string): ReviewIssue['severity'] {
@@ -1236,14 +1244,11 @@ class BugmentAction {
           side: 'RIGHT' as const
         };
 
-        // Add multi-line support if available (also validate start line)
+        // Disable multi-line comments to avoid GitHub API errors
+        // Multi-line comments require start_line and line to be in the same hunk
+        // which is complex to validate, so we use single-line comments only
         if (issue.startLine && issue.endLine && issue.startLine !== issue.endLine) {
-          if (this.isLineInDiff(issue.filePath, issue.startLine)) {
-            lineComment.start_line = issue.startLine;
-            lineComment.start_side = 'RIGHT';
-          } else {
-            core.warning(`⚠️ Start line ${issue.startLine} not in diff, using single line comment`);
-          }
+          core.info(`📝 Converting multi-line comment (${issue.startLine}-${issue.endLine}) to single-line comment at line ${issue.lineNumber}`);
         }
 
         lineComments.push(lineComment);

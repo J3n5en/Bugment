@@ -488,31 +488,41 @@ class BugmentAction {
         return {};
     }
     isLineInDiff(filePath, lineNumber) {
+        // Temporarily disable line validation to avoid GitHub API errors
+        // This ensures all line comments are skipped and only main review comment is posted
+        core.info(`🔍 Checking line ${filePath}:${lineNumber} - validation disabled for stability`);
+        return false;
+        // Original validation logic (commented out for now):
+        /*
         if (!this.parsedDiff || !filePath || !lineNumber) {
-            return false;
+          return false;
         }
+    
         const hunks = this.parsedDiff.files.get(filePath);
         if (!hunks || hunks.length === 0) {
-            return false;
+          return false;
         }
+    
         // Check if the line number falls within any hunk's new line range
         for (const hunk of hunks) {
-            const hunkEndLine = hunk.newStart + hunk.newLines - 1;
-            if (lineNumber >= hunk.newStart && lineNumber <= hunkEndLine) {
-                // Additional check: make sure the line is actually modified (not just context)
-                let currentNewLine = hunk.newStart;
-                for (const hunkLine of hunk.lines) {
-                    if (hunkLine.startsWith('+') || hunkLine.startsWith(' ')) {
-                        if (currentNewLine === lineNumber) {
-                            // Line is in diff and is either added or context
-                            return hunkLine.startsWith('+') || hunkLine.startsWith(' ');
-                        }
-                        currentNewLine++;
-                    }
+          const hunkEndLine = hunk.newStart + hunk.newLines - 1;
+          if (lineNumber >= hunk.newStart && lineNumber <= hunkEndLine) {
+            // Additional check: make sure the line is actually modified (not just context)
+            let currentNewLine = hunk.newStart;
+            for (const hunkLine of hunk.lines) {
+              if (hunkLine.startsWith('+') || hunkLine.startsWith(' ')) {
+                if (currentNewLine === lineNumber) {
+                  // Line is in diff and is either added or context
+                  return hunkLine.startsWith('+') || hunkLine.startsWith(' ');
                 }
+                currentNewLine++;
+              }
             }
+          }
         }
+    
         return false;
+        */
     }
     mapSeverity(severityText) {
         const lowerText = severityText.toLowerCase();
@@ -1000,15 +1010,11 @@ class BugmentAction {
                     body: lineCommentBody,
                     side: 'RIGHT'
                 };
-                // Add multi-line support if available (also validate start line)
+                // Disable multi-line comments to avoid GitHub API errors
+                // Multi-line comments require start_line and line to be in the same hunk
+                // which is complex to validate, so we use single-line comments only
                 if (issue.startLine && issue.endLine && issue.startLine !== issue.endLine) {
-                    if (this.isLineInDiff(issue.filePath, issue.startLine)) {
-                        lineComment.start_line = issue.startLine;
-                        lineComment.start_side = 'RIGHT';
-                    }
-                    else {
-                        core.warning(`⚠️ Start line ${issue.startLine} not in diff, using single line comment`);
-                    }
+                    core.info(`📝 Converting multi-line comment (${issue.startLine}-${issue.endLine}) to single-line comment at line ${issue.lineNumber}`);
                 }
                 lineComments.push(lineComment);
                 validLineComments++;
