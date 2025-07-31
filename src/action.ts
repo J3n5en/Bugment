@@ -887,48 +887,85 @@ class BugmentAction {
         pull_number: this.prInfo.number,
       });
 
+      let resolvedCount = 0;
+      let processedCount = 0;
+
       // Find previous AI-generated comments that are no longer relevant
       for (const comment of comments.data) {
-        if (comment.body?.includes('**🐛') || comment.body?.includes('**🔍') || 
+        if (comment.body?.includes('**🐛') || comment.body?.includes('**🔍') ||
             comment.body?.includes('**🔒') || comment.body?.includes('**⚡')) {
+          processedCount++;
+
           // This is likely an AI-generated comment, check if the issue still exists
           const isStillRelevant = this.isCommentStillRelevant(comment, previousReviews);
-          
+
           if (!isStillRelevant) {
-            // Mark as resolved by adding a reply
+            // Instead of adding a reply, we'll update the comment body to mark it as resolved
             try {
-              await this.octokit.rest.pulls.createReplyForReviewComment({
+              const resolvedBody = this.markCommentAsResolved(comment.body || '');
+
+              await this.octokit.rest.pulls.updateReviewComment({
                 owner: this.prInfo.owner,
                 repo: this.prInfo.repo,
-                pull_number: this.prInfo.number,
                 comment_id: comment.id,
-                body: "✅ This issue has been resolved in the latest changes."
+                body: resolvedBody
               });
+
+              resolvedCount++;
+              core.info(`✅ Marked comment ${comment.id} as resolved`);
             } catch (error) {
               core.warning(`Failed to mark comment ${comment.id} as resolved: ${error}`);
             }
           }
         }
       }
+
+      if (processedCount > 0) {
+        core.info(`📝 Processed ${processedCount} previous comments, marked ${resolvedCount} as resolved`);
+      }
     } catch (error) {
       core.warning(`Failed to process previous line comments: ${error}`);
     }
   }
 
+  private markCommentAsResolved(originalBody: string): string {
+    // Check if already marked as resolved
+    if (originalBody.includes('~~') || originalBody.includes('✅ **已解决**')) {
+      return originalBody;
+    }
+
+    // Add resolved marker at the beginning
+    const resolvedHeader = '✅ **已解决** - 此问题已在后续提交中修复\n\n---\n\n';
+
+    // Strike through the original content to show it's resolved
+    const lines = originalBody.split('\n');
+    const struckThroughLines = lines.map(line => {
+      if (line.trim() === '') return line;
+      return `~~${line}~~`;
+    });
+
+    return resolvedHeader + struckThroughLines.join('\n');
+  }
+
   private isCommentStillRelevant(comment: any, previousReviews: ReviewResult[]): boolean {
-    // Simple heuristic: if the file/line mentioned in the comment still has issues
-    // in the current review, consider it relevant
-    const commentText = comment.body || '';
+    // Skip if already marked as resolved
+    if (comment.body?.includes('✅ **已解决**') || comment.body?.includes('~~')) {
+      return true; // Don't process already resolved comments
+    }
+
     const filePath = comment.path;
     const lineNumber = comment.line;
 
-    // Check if any previous review had issues at this location
-    for (const review of previousReviews) {
-      const hasIssueAtLocation = review.issues.some(issue => 
-        issue.filePath === filePath && issue.lineNumber === lineNumber
-      );
-      if (hasIssueAtLocation) {
-        return false; // Issue was fixed, comment is no longer relevant
+    // Check if the current review (latest) still has issues at this location
+    if (previousReviews.length > 0) {
+      const latestReview = previousReviews[0]; // Reviews are sorted by timestamp (newest first)
+      if (latestReview && latestReview.issues) {
+        const hasCurrentIssueAtLocation = latestReview.issues.some(issue =>
+          issue.filePath === filePath && issue.lineNumber === lineNumber
+        );
+
+        // If the latest review still has an issue at this location, the comment is still relevant
+        return hasCurrentIssueAtLocation;
       }
     }
 
