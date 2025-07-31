@@ -446,6 +446,7 @@ class BugmentAction {
 
     let currentFile = "";
     let currentHunk: DiffHunk | null = null;
+    let isIgnoringFile = false;
     let i = 0;
 
     core.info(`📄 Parsing diff content with ${lines.length} lines`);
@@ -462,19 +463,22 @@ class BugmentAction {
       if (line.startsWith("diff --git")) {
         const match = line.match(/diff --git a\/(.+) b\/(.+)/);
         if (match && match[2]) {
-          currentFile = match[2]; // Use the new file path
+          const filePath = match[2]; // Use the new file path
 
           // Check if file should be ignored
-          if (
-            this.ignoreManager &&
-            this.ignoreManager.shouldIgnore(currentFile)
-          ) {
-            // Skip this file entirely - find the next file header
+          if (this.ignoreManager && this.ignoreManager.shouldIgnore(filePath)) {
+            // Mark this file as ignored and skip all its content
+            isIgnoringFile = true;
             currentFile = "";
             currentHunk = null;
             i++;
             continue;
           }
+
+          // File is not ignored
+          isIgnoringFile = false;
+          currentFile = filePath;
+          currentHunk = null;
 
           core.info(`📁 Found file in diff: ${currentFile}`);
           if (!files.has(currentFile)) {
@@ -486,6 +490,12 @@ class BugmentAction {
       }
       // Hunk header: @@ -oldStart,oldLines +newStart,newLines @@
       else if (line.startsWith("@@")) {
+        // Skip hunk headers for ignored files
+        if (isIgnoringFile) {
+          i++;
+          continue;
+        }
+
         const match = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
         if (match && currentFile && match[1] && match[3]) {
           const oldStart = parseInt(match[1], 10);
@@ -512,8 +522,9 @@ class BugmentAction {
       }
       // Content lines
       else if (
+        !isIgnoringFile && // Skip content lines for ignored files
         currentHunk &&
-        currentFile && // Only process if we have a valid current file (not ignored)
+        currentFile &&
         (line.startsWith("+") || line.startsWith("-") || line.startsWith(" "))
       ) {
         currentHunk.lines.push(line);
