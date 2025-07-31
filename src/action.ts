@@ -25,8 +25,8 @@ interface PullRequestInfo {
 
 interface ReviewIssue {
   id: string;
-  type: 'bug' | 'code_smell' | 'security' | 'performance';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: "bug" | "code_smell" | "security" | "performance";
+  severity: "low" | "medium" | "high" | "critical";
   title: string;
   description: string;
   location: string;
@@ -60,8 +60,6 @@ interface ReviewResult {
   issues: ReviewIssue[];
   totalIssues: number;
 }
-
-
 
 interface ReviewComparison {
   newIssues: ReviewIssue[];
@@ -185,7 +183,10 @@ class BugmentAction {
     }
 
     // First check if this is a merge commit
-    const isMergeCommit = await this.checkIfMergeCommit(workspaceDir, githubSha);
+    const isMergeCommit = await this.checkIfMergeCommit(
+      workspaceDir,
+      githubSha
+    );
     if (!isMergeCommit) {
       core.info("📝 GITHUB_SHA is not a merge commit, using original base SHA");
       return this.prInfo.baseSha;
@@ -193,14 +194,10 @@ class BugmentAction {
 
     // Try to get the first parent of the merge commit
     return new Promise((resolve) => {
-      const gitProcess = spawn(
-        "git",
-        ["rev-parse", `${githubSha}^1`],
-        {
-          cwd: workspaceDir,
-          stdio: ["pipe", "pipe", "pipe"],
-        }
-      );
+      const gitProcess = spawn("git", ["rev-parse", `${githubSha}^1`], {
+        cwd: workspaceDir,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
 
       let stdout = "";
       let stderr = "";
@@ -216,10 +213,14 @@ class BugmentAction {
       gitProcess.on("close", (code: number) => {
         if (code === 0) {
           const actualBaseSha = stdout.trim();
-          core.info(`📝 Successfully extracted actual base SHA: ${actualBaseSha}`);
+          core.info(
+            `📝 Successfully extracted actual base SHA: ${actualBaseSha}`
+          );
           resolve(actualBaseSha);
         } else {
-          core.info(`📝 Could not extract base SHA from merge commit, using original base SHA`);
+          core.info(
+            `📝 Could not extract base SHA from merge commit, using original base SHA`
+          );
           core.debug(`Git error: ${stderr}`);
           resolve(this.prInfo.baseSha);
         }
@@ -233,16 +234,15 @@ class BugmentAction {
     });
   }
 
-  private async checkIfMergeCommit(workspaceDir: string, sha: string): Promise<boolean> {
+  private async checkIfMergeCommit(
+    workspaceDir: string,
+    sha: string
+  ): Promise<boolean> {
     return new Promise((resolve) => {
-      const gitProcess = spawn(
-        "git",
-        ["cat-file", "-p", sha],
-        {
-          cwd: workspaceDir,
-          stdio: ["pipe", "pipe", "pipe"],
-        }
-      );
+      const gitProcess = spawn("git", ["cat-file", "-p", sha], {
+        cwd: workspaceDir,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
 
       let stdout = "";
 
@@ -253,9 +253,13 @@ class BugmentAction {
       gitProcess.on("close", (code: number) => {
         if (code === 0) {
           // Count parent lines - merge commits have multiple parent lines
-          const parentLines = stdout.split('\n').filter(line => line.startsWith('parent '));
+          const parentLines = stdout
+            .split("\n")
+            .filter((line) => line.startsWith("parent "));
           const isMerge = parentLines.length > 1;
-          core.debug(`📝 Commit ${sha} has ${parentLines.length} parents, is merge: ${isMerge}`);
+          core.debug(
+            `📝 Commit ${sha} has ${parentLines.length} parents, is merge: ${isMerge}`
+          );
           resolve(isMerge);
         } else {
           core.debug(`📝 Could not check commit type for ${sha}`);
@@ -280,13 +284,18 @@ class BugmentAction {
     // Get the correct base SHA for the PR diff
     const actualBaseSha = await this.getActualBaseSha(workspaceDir);
     core.info(`🔍 Comparing ${actualBaseSha}...${this.prInfo.headSha}`);
-    core.info(`📝 Original base SHA: ${this.prInfo.baseSha} (PR creation time)`);
+    core.info(
+      `📝 Original base SHA: ${this.prInfo.baseSha} (PR creation time)`
+    );
     core.info(`📝 Actual base SHA: ${actualBaseSha} (merge commit base)`);
 
     let diffContent: string;
     try {
       // Method 1: Try to use git diff locally (most accurate)
-      diffContent = await this.generateLocalDiffWithCorrectBase(workspaceDir, actualBaseSha);
+      diffContent = await this.generateLocalDiffWithCorrectBase(
+        workspaceDir,
+        actualBaseSha
+      );
       await fs.promises.writeFile(diffPath, diffContent);
       core.info(`✅ Diff file generated using local git: ${diffPath}`);
     } catch (localError) {
@@ -311,10 +320,16 @@ class BugmentAction {
     this.parsedDiff = this.parseDiffContent(diffContent);
     core.info(`📊 Parsed diff for ${this.parsedDiff.files.size} files`);
 
+    // Debug: Log first 1000 characters of diff content for troubleshooting
+    core.info(`📄 Diff content preview: ${diffContent.substring(0, 1000)}...`);
+
     return diffPath;
   }
 
-  private async generateLocalDiffWithCorrectBase(workspaceDir: string, baseSha: string): Promise<string> {
+  private async generateLocalDiffWithCorrectBase(
+    workspaceDir: string,
+    baseSha: string
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       const gitProcess = spawn(
         "git",
@@ -386,7 +401,9 @@ class BugmentAction {
     });
   }
 
-  private async generateApiDiffWithCorrectBase(baseSha: string): Promise<string> {
+  private async generateApiDiffWithCorrectBase(
+    baseSha: string
+  ): Promise<string> {
     const diffResponse = await this.octokit.rest.repos.compareCommits({
       owner: this.prInfo.owner,
       repo: this.prInfo.repo,
@@ -416,11 +433,13 @@ class BugmentAction {
 
   private parseDiffContent(diffContent: string): ParsedDiff {
     const files = new Map<string, DiffHunk[]>();
-    const lines = diffContent.split('\n');
+    const lines = diffContent.split("\n");
 
-    let currentFile = '';
+    let currentFile = "";
     let currentHunk: DiffHunk | null = null;
     let i = 0;
+
+    core.info(`📄 Parsing diff content with ${lines.length} lines`);
 
     while (i < lines.length) {
       const line = lines[i];
@@ -431,17 +450,20 @@ class BugmentAction {
       }
 
       // File header: diff --git a/file b/file
-      if (line.startsWith('diff --git')) {
+      if (line.startsWith("diff --git")) {
         const match = line.match(/diff --git a\/(.+) b\/(.+)/);
         if (match && match[2]) {
           currentFile = match[2]; // Use the new file path
+          core.info(`📁 Found file in diff: ${currentFile}`);
           if (!files.has(currentFile)) {
             files.set(currentFile, []);
           }
+        } else {
+          core.warning(`⚠️ Failed to parse git diff header: ${line}`);
         }
       }
       // Hunk header: @@ -oldStart,oldLines +newStart,newLines @@
-      else if (line.startsWith('@@')) {
+      else if (line.startsWith("@@")) {
         const match = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
         if (match && currentFile && match[1] && match[3]) {
           const oldStart = parseInt(match[1], 10);
@@ -455,18 +477,46 @@ class BugmentAction {
             oldLines,
             newStart,
             newLines,
-            lines: []
+            lines: [],
           };
 
+          core.info(
+            `📊 Found hunk for ${currentFile}: lines ${newStart}-${newStart + newLines - 1}`
+          );
           files.get(currentFile)!.push(currentHunk);
+        } else {
+          core.warning(`⚠️ Failed to parse hunk header: ${line}`);
         }
       }
       // Content lines
-      else if (currentHunk && (line.startsWith('+') || line.startsWith('-') || line.startsWith(' '))) {
+      else if (
+        currentHunk &&
+        (line.startsWith("+") || line.startsWith("-") || line.startsWith(" "))
+      ) {
         currentHunk.lines.push(line);
       }
 
       i++;
+    }
+
+    // Log summary of parsed diff
+    const fileCount = files.size;
+    const totalHunks = Array.from(files.values()).reduce(
+      (sum, hunks) => sum + hunks.length,
+      0
+    );
+    core.info(
+      `📊 Diff parsing complete: ${fileCount} files, ${totalHunks} hunks`
+    );
+
+    // Log each file and its hunks for debugging
+    for (const [filePath, hunks] of files.entries()) {
+      core.info(`📁 File: ${filePath} has ${hunks.length} hunks`);
+      hunks.forEach((hunk, index) => {
+        core.info(
+          `  📊 Hunk ${index + 1}: lines ${hunk.newStart}-${hunk.newStart + hunk.newLines - 1} (${hunk.lines.length} diff lines)`
+        );
+      });
     }
 
     return { files };
@@ -539,16 +589,40 @@ class BugmentAction {
 
     // Parse different issue types
     core.info("🔍 Parsing bugs...");
-    this.parseIssuesFromSection(reviewResult, bugPattern, 'bug', issues, issueId);
+    this.parseIssuesFromSection(
+      reviewResult,
+      bugPattern,
+      "bug",
+      issues,
+      issueId
+    );
 
     core.info("🔍 Parsing code smells...");
-    this.parseIssuesFromSection(reviewResult, smellPattern, 'code_smell', issues, issueId);
+    this.parseIssuesFromSection(
+      reviewResult,
+      smellPattern,
+      "code_smell",
+      issues,
+      issueId
+    );
 
     core.info("🔍 Parsing security issues...");
-    this.parseIssuesFromSection(reviewResult, securityPattern, 'security', issues, issueId);
+    this.parseIssuesFromSection(
+      reviewResult,
+      securityPattern,
+      "security",
+      issues,
+      issueId
+    );
 
     core.info("🔍 Parsing performance issues...");
-    this.parseIssuesFromSection(reviewResult, performancePattern, 'performance', issues, issueId);
+    this.parseIssuesFromSection(
+      reviewResult,
+      performancePattern,
+      "performance",
+      issues,
+      issueId
+    );
 
     const result = {
       reviewId,
@@ -556,31 +630,45 @@ class BugmentAction {
       commitSha: this.prInfo.headSha,
       summary: this.extractSummaryFromReview(reviewResult),
       issues,
-      totalIssues: issues.length
+      totalIssues: issues.length,
     };
 
     core.info(`✅ Parsing complete. Found ${result.totalIssues} total issues`);
     return result;
   }
 
-  private parseIssuesFromSection(reviewResult: string, pattern: RegExp, type: ReviewIssue['type'], issues: ReviewIssue[], issueId: number): void {
+  private parseIssuesFromSection(
+    reviewResult: string,
+    pattern: RegExp,
+    type: ReviewIssue["type"],
+    issues: ReviewIssue[],
+    issueId: number
+  ): void {
     const matches = reviewResult.match(pattern);
     if (matches && matches.length > 0) {
       // The pattern now captures the content after the header, so we use matches[1] if it exists
       const sectionContent = matches[0];
-      core.info(`🔍 Found ${type} section: ${sectionContent.substring(0, 100)}...`);
+      core.info(
+        `🔍 Found ${type} section: ${sectionContent.substring(0, 100)}...`
+      );
 
       // Extract individual issues from the section content
       const issueMatches = sectionContent.match(/## \d+\. .+?(?=## \d+\.|$)/gs);
       if (issueMatches && issueMatches.length > 0) {
         core.info(`📝 Found ${issueMatches.length} ${type} issues`);
         issueMatches.forEach((issueText, index) => {
-          const issue = this.parseIssueFromText(issueText, type, `${type}_${issueId + index}`);
+          const issue = this.parseIssueFromText(
+            issueText,
+            type,
+            `${type}_${issueId + index}`
+          );
           if (issue) {
             issues.push(issue);
             core.info(`✅ Parsed ${type} issue: ${issue.title}`);
           } else {
-            core.warning(`⚠️ Failed to parse ${type} issue from text: ${issueText.substring(0, 100)}...`);
+            core.warning(
+              `⚠️ Failed to parse ${type} issue from text: ${issueText.substring(0, 100)}...`
+            );
           }
         });
       } else {
@@ -591,7 +679,11 @@ class BugmentAction {
     }
   }
 
-  private parseIssueFromText(text: string, type: ReviewIssue['type'], id: string): ReviewIssue | null {
+  private parseIssueFromText(
+    text: string,
+    type: ReviewIssue["type"],
+    id: string
+  ): ReviewIssue | null {
     core.info(`🔍 Parsing ${type} issue text: ${text.substring(0, 200)}...`);
 
     // Extract title from the issue heading
@@ -601,28 +693,41 @@ class BugmentAction {
       return null;
     }
 
-    const title = titleMatch[1]?.trim() || 'Unknown Issue';
+    const title = titleMatch[1]?.trim() || "Unknown Issue";
     core.info(`📝 Found ${type} issue title: ${title}`);
 
     // Extract severity, description, location, etc. from the text
-    const severityMatch = text.match(/\*\*严重程度\*\*[：:]\s*🟡\s*\*\*(\w+)\*\*|\*\*严重程度\*\*[：:]\s*🟢\s*\*\*(\w+)\*\*|\*\*严重程度\*\*[：:]\s*🔴\s*\*\*(\w+)\*\*/);
+    const severityMatch = text.match(
+      /\*\*严重程度\*\*[：:]\s*🟡\s*\*\*(\w+)\*\*|\*\*严重程度\*\*[：:]\s*🟢\s*\*\*(\w+)\*\*|\*\*严重程度\*\*[：:]\s*🔴\s*\*\*(\w+)\*\*/
+    );
     const locationMatch = text.match(/\*\*位置\*\*[：:]\s*(.+?)(?:\n|$)/);
-    const descriptionMatch = text.match(/\*\*描述\*\*[：:]\s*([\s\S]*?)(?=\*\*位置\*\*|\*\*建议修改\*\*|\*\*AI修复Prompt\*\*|$)/);
-    const suggestionMatch = text.match(/\*\*建议修改\*\*[：:]\s*([\s\S]*?)(?=\*\*AI修复Prompt\*\*|$)/);
-    const fixPromptMatch = text.match(/\*\*AI修复Prompt\*\*[：:]\s*```\s*([\s\S]*?)\s*```/);
+    const descriptionMatch = text.match(
+      /\*\*描述\*\*[：:]\s*([\s\S]*?)(?=\*\*位置\*\*|\*\*建议修改\*\*|\*\*AI修复Prompt\*\*|$)/
+    );
+    const suggestionMatch = text.match(
+      /\*\*建议修改\*\*[：:]\s*([\s\S]*?)(?=\*\*AI修复Prompt\*\*|$)/
+    );
+    const fixPromptMatch = text.match(
+      /\*\*AI修复Prompt\*\*[：:]\s*```\s*([\s\S]*?)\s*```/
+    );
 
     if (!descriptionMatch || !descriptionMatch[1]) {
       core.warning(`⚠️ No description found in ${type} issue: ${title}`);
       return null;
     }
 
-    const severityText = severityMatch?.[1] || severityMatch?.[2] || severityMatch?.[3] || 'medium';
+    const severityText =
+      severityMatch?.[1] ||
+      severityMatch?.[2] ||
+      severityMatch?.[3] ||
+      "medium";
     const severity = this.mapSeverity(severityText);
     const description = descriptionMatch[1].trim();
-    const location = locationMatch?.[1]?.trim() || '';
+    const location = locationMatch?.[1]?.trim() || "";
 
     // Parse file path and line number from location
-    const { filePath, lineNumber, startLine, endLine } = this.parseLocationInfo(location);
+    const { filePath, lineNumber, startLine, endLine } =
+      this.parseLocationInfo(location);
 
     return {
       id,
@@ -636,7 +741,7 @@ class BugmentAction {
       startLine,
       endLine,
       fixPrompt: fixPromptMatch?.[1]?.trim(),
-      suggestion: suggestionMatch?.[1]?.trim()
+      suggestion: suggestionMatch?.[1]?.trim(),
     };
   }
 
@@ -646,25 +751,39 @@ class BugmentAction {
     startLine?: number;
     endLine?: number;
   } {
+    core.info(`🔍 Parsing location info: "${location}"`);
+
     // Parse formats like:
     // "src/components/Button.tsx:45"
     // "src/utils/helper.js:12-18"
     // "README.md#L25-L30"
-    const fileLineMatch = location.match(/^([^:]+):(\d+)(?:-(\d+))?/);
-    const githubLineMatch = location.match(/^([^#]+)#L(\d+)(?:-L(\d+))?/);
-    
+    // "[index.ts:16" (malformed format that we need to handle)
+
+    // Handle malformed format with leading bracket
+    let cleanLocation = location.trim();
+    if (cleanLocation.startsWith("[")) {
+      cleanLocation = cleanLocation.substring(1);
+      core.info(`🔧 Cleaned malformed location: "${cleanLocation}"`);
+    }
+
+    const fileLineMatch = cleanLocation.match(/^([^:]+):(\d+)(?:-(\d+))?/);
+    const githubLineMatch = cleanLocation.match(/^([^#]+)#L(\d+)(?:-L(\d+))?/);
+
     if (fileLineMatch) {
       const [, filePath, startLineStr, endLineStr] = fileLineMatch;
       if (filePath && startLineStr) {
         const startLine = parseInt(startLineStr, 10);
         const endLine = endLineStr ? parseInt(endLineStr, 10) : undefined;
 
-        return {
+        const result = {
           filePath: filePath.trim(),
           lineNumber: endLine || startLine, // Use end line if available, otherwise start line
           startLine,
-          endLine
+          endLine,
         };
+
+        core.info(`✅ Parsed file:line format: ${JSON.stringify(result)}`);
+        return result;
       }
     }
 
@@ -674,43 +793,85 @@ class BugmentAction {
         const startLine = parseInt(startLineStr, 10);
         const endLine = endLineStr ? parseInt(endLineStr, 10) : undefined;
 
-        return {
+        const result = {
           filePath: filePath.trim(),
           lineNumber: endLine || startLine,
           startLine,
-          endLine
+          endLine,
         };
+
+        core.info(`✅ Parsed GitHub format: ${JSON.stringify(result)}`);
+        return result;
       }
     }
-    
+
+    core.warning(`⚠️ Failed to parse location: "${location}"`);
     return {};
   }
 
   private isLineInDiff(filePath: string, lineNumber: number): boolean {
-    core.info(`🔍 Checking line ${filePath}:${lineNumber} - validation enabled for PR commit range`);
+    core.info(
+      `🔍 Checking line ${filePath}:${lineNumber} - validation enabled for PR commit range`
+    );
 
     if (!this.parsedDiff || !filePath || !lineNumber) {
       core.info(`❌ Missing diff data or invalid parameters`);
       return false;
     }
 
-    const hunks = this.parsedDiff.files.get(filePath);
+    // Debug: Log all available files in the parsed diff
+    const availableFiles = Array.from(this.parsedDiff.files.keys());
+    core.info(`📁 Available files in diff: ${availableFiles.join(", ")}`);
+
+    // Try exact match first
+    let hunks = this.parsedDiff.files.get(filePath);
+
+    // If exact match fails, try to find a matching file with different path formats
+    if (!hunks || hunks.length === 0) {
+      core.info(`❌ No exact match for file: ${filePath}`);
+
+      // Try to find files that end with the same path
+      const normalizedPath = filePath.replace(/^\/+/, ""); // Remove leading slashes
+      const matchingFile = availableFiles.find((file) => {
+        const normalizedFile = file.replace(/^\/+/, "");
+        return (
+          normalizedFile === normalizedPath ||
+          file.endsWith("/" + normalizedPath) ||
+          normalizedFile.endsWith("/" + filePath) ||
+          file === normalizedPath
+        );
+      });
+
+      if (matchingFile) {
+        core.info(`✅ Found matching file: ${matchingFile} for ${filePath}`);
+        hunks = this.parsedDiff.files.get(matchingFile);
+      } else {
+        core.info(`❌ No matching file found for: ${filePath}`);
+        core.info(`📝 Tried to match against: ${availableFiles.join(", ")}`);
+        return false;
+      }
+    }
+
     if (!hunks || hunks.length === 0) {
       core.info(`❌ No hunks found for file: ${filePath}`);
       return false;
     }
 
+    core.info(`📊 Found ${hunks.length} hunks for file: ${filePath}`);
+
     // Check if the line number falls within any hunk's new line range
     for (const hunk of hunks) {
       const hunkEndLine = hunk.newStart + hunk.newLines - 1;
-      core.info(`🔍 Checking hunk range: ${hunk.newStart}-${hunkEndLine} for line ${lineNumber}`);
+      core.info(
+        `🔍 Checking hunk range: ${hunk.newStart}-${hunkEndLine} for line ${lineNumber}`
+      );
 
       if (lineNumber >= hunk.newStart && lineNumber <= hunkEndLine) {
         // For PR review, we want to allow comments on any line within the diff range
         // This includes added lines (+), removed lines (-), and context lines ( )
         let currentNewLine = hunk.newStart;
         for (const hunkLine of hunk.lines) {
-          if (hunkLine.startsWith('+') || hunkLine.startsWith(' ')) {
+          if (hunkLine.startsWith("+") || hunkLine.startsWith(" ")) {
             if (currentNewLine === lineNumber) {
               core.info(`✅ Line ${lineNumber} found in diff range`);
               return true; // Allow comments on any line in the PR diff
@@ -721,22 +882,28 @@ class BugmentAction {
       }
     }
 
-    core.info(`❌ Line ${lineNumber} not found in any diff hunk for ${filePath}`);
+    core.info(
+      `❌ Line ${lineNumber} not found in any diff hunk for ${filePath}`
+    );
     return false;
   }
 
-  private mapSeverity(severityText: string): ReviewIssue['severity'] {
+  private mapSeverity(severityText: string): ReviewIssue["severity"] {
     const lowerText = severityText.toLowerCase();
-    if (lowerText.includes('高') || lowerText.includes('critical')) return 'critical';
-    if (lowerText.includes('中') || lowerText.includes('medium')) return 'medium';
-    if (lowerText.includes('低') || lowerText.includes('low')) return 'low';
-    return 'medium';
+    if (lowerText.includes("高") || lowerText.includes("critical"))
+      return "critical";
+    if (lowerText.includes("中") || lowerText.includes("medium"))
+      return "medium";
+    if (lowerText.includes("低") || lowerText.includes("low")) return "low";
+    return "medium";
   }
 
   private extractTitleFromDescription(description: string): string {
     // Extract the first sentence or first 50 characters as title
-    const firstLine = description.split('\n')[0] || '';
-    return firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine;
+    const firstLine = description.split("\n")[0] || "";
+    return firstLine.length > 50
+      ? firstLine.substring(0, 47) + "..."
+      : firstLine;
   }
 
   private getFilesWithIssues(issues: ReviewIssue[]): Array<{
@@ -745,9 +912,9 @@ class BugmentAction {
     description: string;
   }> {
     const fileMap = new Map<string, ReviewIssue[]>();
-    
+
     // Group issues by file
-    issues.forEach(issue => {
+    issues.forEach((issue) => {
       if (issue.filePath) {
         if (!fileMap.has(issue.filePath)) {
           fileMap.set(issue.filePath, []);
@@ -757,47 +924,67 @@ class BugmentAction {
     });
 
     // Convert to array with descriptions
-    return Array.from(fileMap.entries()).map(([filePath, fileIssues]) => {
-      const issueTypes = [...new Set(fileIssues.map(issue => this.getTypeName(issue.type)))];
-      const description = issueTypes.length > 1 
-        ? `${issueTypes.slice(0, -1).join(', ')}和${issueTypes.slice(-1)[0]}问题`
-        : `${issueTypes[0]}问题`;
-      
-      return {
-        filePath,
-        issues: fileIssues,
-        description
-      };
-    }).sort((a, b) => a.filePath.localeCompare(b.filePath));
+    return Array.from(fileMap.entries())
+      .map(([filePath, fileIssues]) => {
+        const issueTypes = [
+          ...new Set(fileIssues.map((issue) => this.getTypeName(issue.type))),
+        ];
+        const description =
+          issueTypes.length > 1
+            ? `${issueTypes.slice(0, -1).join(", ")}和${issueTypes.slice(-1)[0]}问题`
+            : `${issueTypes[0]}问题`;
+
+        return {
+          filePath,
+          issues: fileIssues,
+          description,
+        };
+      })
+      .sort((a, b) => a.filePath.localeCompare(b.filePath));
   }
 
-  private getSeverityEmoji(severity: ReviewIssue['severity']): string {
+  private getSeverityEmoji(severity: ReviewIssue["severity"]): string {
     switch (severity) {
-      case 'critical': return '🔴';
-      case 'high': return '🟠';
-      case 'medium': return '🟡';
-      case 'low': return '🟢';
-      default: return '⚪';
+      case "critical":
+        return "🔴";
+      case "high":
+        return "🟠";
+      case "medium":
+        return "🟡";
+      case "low":
+        return "🟢";
+      default:
+        return "⚪";
     }
   }
 
-  private getTypeEmoji(type: ReviewIssue['type']): string {
+  private getTypeEmoji(type: ReviewIssue["type"]): string {
     switch (type) {
-      case 'bug': return '🐛';
-      case 'security': return '🔒';
-      case 'performance': return '⚡';
-      case 'code_smell': return '🔍';
-      default: return '❓';
+      case "bug":
+        return "🐛";
+      case "security":
+        return "🔒";
+      case "performance":
+        return "⚡";
+      case "code_smell":
+        return "🔍";
+      default:
+        return "❓";
     }
   }
 
-  private getTypeName(type: ReviewIssue['type']): string {
+  private getTypeName(type: ReviewIssue["type"]): string {
     switch (type) {
-      case 'bug': return '潜在 Bug';
-      case 'security': return '安全问题';
-      case 'performance': return '性能问题';
-      case 'code_smell': return '代码异味';
-      default: return '其他问题';
+      case "bug":
+        return "潜在 Bug";
+      case "security":
+        return "安全问题";
+      case "performance":
+        return "性能问题";
+      case "code_smell":
+        return "代码异味";
+      default:
+        return "其他问题";
     }
   }
 
@@ -806,10 +993,10 @@ class BugmentAction {
       critical: 0,
       high: 0,
       medium: 0,
-      low: 0
+      low: 0,
     };
 
-    issues.forEach(issue => {
+    issues.forEach((issue) => {
       counts[issue.severity]++;
     });
 
@@ -819,14 +1006,17 @@ class BugmentAction {
     if (counts.medium > 0) parts.push(`🟡${counts.medium}`);
     if (counts.low > 0) parts.push(`🟢${counts.low}`);
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   private formatIssueForGitHub(issue: ReviewIssue, index: number): string {
     let formatted = `#### ${index}. ${issue.title}\n\n`;
 
     // Use GitHub alert syntax for better visibility
-    const alertType = issue.severity === 'critical' || issue.severity === 'high' ? 'WARNING' : 'NOTE';
+    const alertType =
+      issue.severity === "critical" || issue.severity === "high"
+        ? "WARNING"
+        : "NOTE";
     formatted += `> [!${alertType}]\n`;
     formatted += `> **严重程度:** ${this.getSeverityEmoji(issue.severity)} ${this.getSeverityText(issue.severity)}\n\n`;
 
@@ -849,12 +1039,14 @@ class BugmentAction {
 
   private extractSummaryFromReview(reviewResult: string): string {
     // Extract the summary section from the review
-    const summaryMatch = reviewResult.match(/# Overall Comments[\s\S]*?(?=# |$)/);
+    const summaryMatch = reviewResult.match(
+      /# Overall Comments[\s\S]*?(?=# |$)/
+    );
     if (summaryMatch && summaryMatch[0]) {
       // Clean up the summary
-      return summaryMatch[0].replace(/# Overall Comments\s*/, '').trim();
+      return summaryMatch[0].replace(/# Overall Comments\s*/, "").trim();
     }
-    return '';
+    return "";
   }
 
   private async getPreviousReviewsAndDismissOld(): Promise<ReviewResult[]> {
@@ -867,15 +1059,20 @@ class BugmentAction {
       });
 
       const reviewResults: ReviewResult[] = [];
-      const reviewsToDismiss: { id: number; nodeId: string; state: string }[] = [];
+      const reviewsToDismiss: { id: number; nodeId: string; state: string }[] =
+        [];
 
       // Parse previous AI Code Review reviews and collect them for dismissing
       for (const review of reviews.data) {
-        if (review.body?.includes("Bugment Code Review") &&
-            review.body?.includes("REVIEW_DATA:") &&
-            review.state !== 'DISMISSED') {
+        if (
+          review.body?.includes("Bugment Code Review") &&
+          review.body?.includes("REVIEW_DATA:") &&
+          review.state !== "DISMISSED"
+        ) {
           try {
-            const reviewDataMatch = review.body.match(/REVIEW_DATA:\s*```json\s*([\s\S]*?)\s*```/);
+            const reviewDataMatch = review.body.match(
+              /REVIEW_DATA:\s*```json\s*([\s\S]*?)\s*```/
+            );
             if (reviewDataMatch && reviewDataMatch[1]) {
               const reviewData = JSON.parse(reviewDataMatch[1]);
               reviewResults.push(reviewData);
@@ -883,10 +1080,16 @@ class BugmentAction {
               // Only collect reviews that can be dismissed
               // According to GitHub API docs, only PENDING reviews can be dismissed
               // COMMENTED and REQUEST_CHANGES reviews cannot be dismissed
-              if (review.state === 'PENDING') {
-                reviewsToDismiss.push({ id: review.id, nodeId: review.node_id, state: review.state });
+              if (review.state === "PENDING") {
+                reviewsToDismiss.push({
+                  id: review.id,
+                  nodeId: review.node_id,
+                  state: review.state,
+                });
               } else {
-                core.info(`Skipping dismiss for review ${review.id} with state: ${review.state} (cannot be dismissed)`);
+                core.info(
+                  `Skipping dismiss for review ${review.id} with state: ${review.state} (cannot be dismissed)`
+                );
               }
             }
           } catch (error) {
@@ -900,7 +1103,9 @@ class BugmentAction {
 
       // Dismiss all previous AI Code Review reviews that can be dismissed
       if (reviewsToDismiss.length > 0) {
-        core.info(`🗑️ Attempting to dismiss ${reviewsToDismiss.length} previous reviews`);
+        core.info(
+          `🗑️ Attempting to dismiss ${reviewsToDismiss.length} previous reviews`
+        );
         for (const review of reviewsToDismiss) {
           try {
             await this.octokit.rest.pulls.dismissReview({
@@ -908,9 +1113,11 @@ class BugmentAction {
               repo: this.prInfo.repo,
               pull_number: this.prInfo.number,
               review_id: review.id,
-              message: "Superseded by newer AI Code Review"
+              message: "Superseded by newer AI Code Review",
             });
-            core.info(`✅ Dismissed previous review: ${review.id} (state: ${review.state})`);
+            core.info(
+              `✅ Dismissed previous review: ${review.id} (state: ${review.state})`
+            );
           } catch (error) {
             core.warning(`⚠️ Failed to dismiss review ${review.id}: ${error}`);
           }
@@ -920,14 +1127,19 @@ class BugmentAction {
       }
 
       // Sort by timestamp (newest first)
-      return reviewResults.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return reviewResults.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
     } catch (error) {
       core.warning(`Failed to get previous reviews: ${error}`);
       return [];
     }
   }
 
-  private async markResolvedLineComments(previousReviews: ReviewResult[]): Promise<void> {
+  private async markResolvedLineComments(
+    previousReviews: ReviewResult[]
+  ): Promise<void> {
     try {
       // Use GraphQL to get review threads and resolve them
       const reviewThreads = await this.getReviewThreadsWithComments();
@@ -942,9 +1154,12 @@ class BugmentAction {
         }
 
         // Check if this thread contains AI-generated comments
-        const hasAIComment = thread.comments.some((comment: any) =>
-          comment.body?.includes('**🐛') || comment.body?.includes('**🔍') ||
-          comment.body?.includes('**🔒') || comment.body?.includes('**⚡')
+        const hasAIComment = thread.comments.some(
+          (comment: any) =>
+            comment.body?.includes("**🐛") ||
+            comment.body?.includes("**🔍") ||
+            comment.body?.includes("**🔒") ||
+            comment.body?.includes("**⚡")
         );
 
         if (hasAIComment) {
@@ -952,7 +1167,10 @@ class BugmentAction {
 
           // Check if the issue is still relevant based on the first comment in the thread
           const firstComment = thread.comments[0];
-          const isStillRelevant = this.isCommentStillRelevant(firstComment, previousReviews);
+          const isStillRelevant = this.isCommentStillRelevant(
+            firstComment,
+            previousReviews
+          );
 
           if (!isStillRelevant) {
             // Use GraphQL to resolve the conversation
@@ -968,7 +1186,9 @@ class BugmentAction {
       }
 
       if (processedCount > 0) {
-        core.info(`📝 Processed ${processedCount} review threads, resolved ${resolvedCount} conversations`);
+        core.info(
+          `📝 Processed ${processedCount} review threads, resolved ${resolvedCount} conversations`
+        );
       }
     } catch (error) {
       core.warning(`Failed to process review threads: ${error}`);
@@ -1033,9 +1253,15 @@ class BugmentAction {
     });
   }
 
-  private isCommentStillRelevant(comment: any, previousReviews: ReviewResult[]): boolean {
+  private isCommentStillRelevant(
+    comment: any,
+    previousReviews: ReviewResult[]
+  ): boolean {
     // Skip if already marked as resolved (for backward compatibility)
-    if (comment.body?.includes('✅ **已解决**') || comment.body?.includes('~~')) {
+    if (
+      comment.body?.includes("✅ **已解决**") ||
+      comment.body?.includes("~~")
+    ) {
       return true; // Don't process already resolved comments
     }
 
@@ -1046,8 +1272,9 @@ class BugmentAction {
     if (previousReviews.length > 0) {
       const latestReview = previousReviews[0]; // Reviews are sorted by timestamp (newest first)
       if (latestReview && latestReview.issues) {
-        const hasCurrentIssueAtLocation = latestReview.issues.some(issue =>
-          issue.filePath === filePath && issue.lineNumber === lineNumber
+        const hasCurrentIssueAtLocation = latestReview.issues.some(
+          (issue) =>
+            issue.filePath === filePath && issue.lineNumber === lineNumber
         );
 
         // If the latest review still has an issue at this location, the comment is still relevant
@@ -1058,9 +1285,10 @@ class BugmentAction {
     return true; // Assume still relevant if we can't determine otherwise
   }
 
-
-
-  private compareReviews(currentReview: ReviewResult, previousReviews: ReviewResult[]): ReviewComparison {
+  private compareReviews(
+    currentReview: ReviewResult,
+    previousReviews: ReviewResult[]
+  ): ReviewComparison {
     if (previousReviews.length === 0) {
       // First review - all issues are new
       return {
@@ -1070,7 +1298,7 @@ class BugmentAction {
         modifiedIssues: [],
         fixedCount: 0,
         newCount: currentReview.issues.length,
-        persistentCount: 0
+        persistentCount: 0,
       };
     }
 
@@ -1084,18 +1312,29 @@ class BugmentAction {
         modifiedIssues: [],
         fixedCount: 0,
         newCount: currentReview.issues.length,
-        persistentCount: 0
+        persistentCount: 0,
       };
     }
 
     const newIssues: ReviewIssue[] = [];
     const fixedIssues: ReviewIssue[] = [];
     const persistentIssues: ReviewIssue[] = [];
-    const modifiedIssues: { previous: ReviewIssue; current: ReviewIssue }[] = [];
+    const modifiedIssues: { previous: ReviewIssue; current: ReviewIssue }[] =
+      [];
 
     // Create maps for easier lookup
-    const currentIssueMap = new Map(currentReview.issues.map(issue => [this.getIssueSignature(issue), issue]));
-    const previousIssueMap = new Map(latestPreviousReview.issues.map(issue => [this.getIssueSignature(issue), issue]));
+    const currentIssueMap = new Map(
+      currentReview.issues.map((issue) => [
+        this.getIssueSignature(issue),
+        issue,
+      ])
+    );
+    const previousIssueMap = new Map(
+      latestPreviousReview.issues.map((issue) => [
+        this.getIssueSignature(issue),
+        issue,
+      ])
+    );
 
     // Find new and persistent issues
     for (const currentIssue of currentReview.issues) {
@@ -1106,7 +1345,10 @@ class BugmentAction {
         newIssues.push(currentIssue);
       } else if (this.issuesAreSimilar(currentIssue, previousIssue)) {
         if (currentIssue.description !== previousIssue.description) {
-          modifiedIssues.push({ previous: previousIssue, current: currentIssue });
+          modifiedIssues.push({
+            previous: previousIssue,
+            current: currentIssue,
+          });
         } else {
           persistentIssues.push(currentIssue);
         }
@@ -1128,27 +1370,35 @@ class BugmentAction {
       modifiedIssues,
       fixedCount: fixedIssues.length,
       newCount: newIssues.length,
-      persistentCount: persistentIssues.length
+      persistentCount: persistentIssues.length,
     };
   }
 
   private getIssueSignature(issue: ReviewIssue): string {
     // Create a signature based on type, location, and key parts of description
-    const locationPart = issue.location || issue.filePath || '';
+    const locationPart = issue.location || issue.filePath || "";
     const descriptionPart = issue.description.substring(0, 100);
-    return `${issue.type}_${locationPart}_${descriptionPart}`.replace(/\s+/g, '_');
+    return `${issue.type}_${locationPart}_${descriptionPart}`.replace(
+      /\s+/g,
+      "_"
+    );
   }
 
   private issuesAreSimilar(issue1: ReviewIssue, issue2: ReviewIssue): boolean {
-    return issue1.type === issue2.type &&
-           issue1.location === issue2.location &&
-           issue1.filePath === issue2.filePath &&
-           issue1.lineNumber === issue2.lineNumber;
+    return (
+      issue1.type === issue2.type &&
+      issue1.location === issue2.location &&
+      issue1.filePath === issue2.filePath &&
+      issue1.lineNumber === issue2.lineNumber
+    );
   }
 
-  private formatMainReviewComment(reviewResult: ReviewResult, comparison: ReviewComparison): string {
+  private formatMainReviewComment(
+    reviewResult: ReviewResult,
+    comparison: ReviewComparison
+  ): string {
     let content = `## Bugment Code Review\n\n`;
-    
+
     // Add PR summary based on the original review
     if (reviewResult.summary && reviewResult.summary.trim()) {
       content += `${reviewResult.summary}\n\n`;
@@ -1165,7 +1415,7 @@ class BugmentAction {
     if (filesWithIssues.length > 0) {
       content += `| 文件 | 发现的问题 |\n`;
       content += `| ---- | ---------- |\n`;
-      
+
       filesWithIssues.forEach(({ filePath, issues, description }) => {
         const issueCount = issues.length;
         const severityDistribution = this.getSeverityDistribution(issues);
@@ -1175,7 +1425,10 @@ class BugmentAction {
     }
 
     // Add status information if there are changes
-    const hasStatusChanges = comparison.fixedCount > 0 || comparison.newCount > 0 || comparison.persistentCount > 0;
+    const hasStatusChanges =
+      comparison.fixedCount > 0 ||
+      comparison.newCount > 0 ||
+      comparison.persistentCount > 0;
     if (hasStatusChanges) {
       content += `### 变更摘要\n\n`;
       if (comparison.fixedCount > 0) {
@@ -1197,7 +1450,9 @@ class BugmentAction {
     }
 
     // Add issues summary for low confidence issues (if any)
-    const lowConfidenceIssues = reviewResult.issues.filter(issue => issue.severity === 'low');
+    const lowConfidenceIssues = reviewResult.issues.filter(
+      (issue) => issue.severity === "low"
+    );
     if (lowConfidenceIssues.length > 0) {
       content += `<details>\n`;
       content += `<summary>由于置信度较低而抑制的评论 (${lowConfidenceIssues.length})</summary>\n\n`;
@@ -1216,20 +1471,22 @@ class BugmentAction {
   }
 
   private formatOriginalReviewContent(reviewResult: ReviewResult): string {
-    let content = '';
+    let content = "";
 
     // Add summary if exists
     if (reviewResult.summary && reviewResult.summary.trim()) {
-      content += reviewResult.summary + '\n\n';
+      content += reviewResult.summary + "\n\n";
     }
 
     if (reviewResult.issues.length > 0) {
       // Group issues by type
       const issuesByType = {
-        bug: reviewResult.issues.filter(i => i.type === 'bug'),
-        security: reviewResult.issues.filter(i => i.type === 'security'),
-        performance: reviewResult.issues.filter(i => i.type === 'performance'),
-        code_smell: reviewResult.issues.filter(i => i.type === 'code_smell')
+        bug: reviewResult.issues.filter((i) => i.type === "bug"),
+        security: reviewResult.issues.filter((i) => i.type === "security"),
+        performance: reviewResult.issues.filter(
+          (i) => i.type === "performance"
+        ),
+        code_smell: reviewResult.issues.filter((i) => i.type === "code_smell"),
       };
 
       // Create a summary table first
@@ -1239,8 +1496,8 @@ class BugmentAction {
 
       Object.entries(issuesByType).forEach(([type, issues]) => {
         if (issues.length > 0) {
-          const typeEmoji = this.getTypeEmoji(type as ReviewIssue['type']);
-          const typeName = this.getTypeName(type as ReviewIssue['type']);
+          const typeEmoji = this.getTypeEmoji(type as ReviewIssue["type"]);
+          const typeName = this.getTypeName(type as ReviewIssue["type"]);
           const severityCount = this.getSeverityDistribution(issues);
           content += `| ${typeEmoji} ${typeName} | ${issues.length} | ${severityCount} |\n`;
         }
@@ -1288,61 +1545,67 @@ class BugmentAction {
     return content;
   }
 
-
-
-
-
   private formatLineComment(issue: ReviewIssue): string {
     const severityText = this.getSeverityText(issue.severity);
     let comment = `**${this.getTypeEmoji(issue.type)} ${this.getTypeName(issue.type)}** - ${this.getSeverityEmoji(issue.severity)} ${severityText}\n\n`;
-    
+
     comment += `${issue.description}\n\n`;
-    
+
     if (issue.suggestion) {
-      comment += '```suggestion\n';
+      comment += "```suggestion\n";
       comment += issue.suggestion;
-      comment += '\n```\n\n';
+      comment += "\n```\n\n";
     }
-    
+
     if (issue.fixPrompt) {
       comment += `**🔧 修复建议:**\n\`\`\`\n${issue.fixPrompt}\n\`\`\``;
     }
-    
+
     return comment;
   }
 
-  private getSeverityText(severity: ReviewIssue['severity']): string {
+  private getSeverityText(severity: ReviewIssue["severity"]): string {
     switch (severity) {
-      case 'critical': return '严重';
-      case 'high': return '高';
-      case 'medium': return '中等';
-      case 'low': return '轻微';
-      default: return '中等';
+      case "critical":
+        return "严重";
+      case "high":
+        return "高";
+      case "medium":
+        return "中等";
+      case "low":
+        return "轻微";
+      default:
+        return "中等";
     }
   }
 
-  private determineReviewEvent(reviewResult: ReviewResult): 'REQUEST_CHANGES' | 'COMMENT' {
+  private determineReviewEvent(
+    reviewResult: ReviewResult
+  ): "REQUEST_CHANGES" | "COMMENT" {
     if (reviewResult.totalIssues > 0) {
       const hasCriticalOrHighIssues = reviewResult.issues.some(
-        issue => issue.severity === 'critical' || issue.severity === 'high'
+        (issue) => issue.severity === "critical" || issue.severity === "high"
       );
 
       if (hasCriticalOrHighIssues) {
-        return 'REQUEST_CHANGES';
+        return "REQUEST_CHANGES";
       }
     }
-    return 'COMMENT';
+    return "COMMENT";
   }
 
-  private async createUnifiedPullRequestReview(commentBody: string, reviewResult: ReviewResult): Promise<void> {
+  private async createUnifiedPullRequestReview(
+    commentBody: string,
+    reviewResult: ReviewResult
+  ): Promise<void> {
     // Create line-level comments for issues with file locations
     const lineComments: Array<{
       path: string;
       line: number;
       body: string;
       start_line?: number;
-      start_side?: 'LEFT' | 'RIGHT';
-      side?: 'LEFT' | 'RIGHT';
+      start_side?: "LEFT" | "RIGHT";
+      side?: "LEFT" | "RIGHT";
     }> = [];
 
     let validLineComments = 0;
@@ -1353,7 +1616,9 @@ class BugmentAction {
       if (issue.filePath && issue.lineNumber) {
         // Validate that the line is within the diff
         if (!this.isLineInDiff(issue.filePath, issue.lineNumber)) {
-          core.warning(`⚠️ Skipping line comment for ${issue.filePath}:${issue.lineNumber} - not in diff range`);
+          core.warning(
+            `⚠️ Skipping line comment for ${issue.filePath}:${issue.lineNumber} - not in diff range`
+          );
           invalidLineComments++;
           continue;
         }
@@ -1364,14 +1629,20 @@ class BugmentAction {
           path: issue.filePath,
           line: issue.lineNumber,
           body: lineCommentBody,
-          side: 'RIGHT' as const
+          side: "RIGHT" as const,
         };
 
         // Disable multi-line comments to avoid GitHub API errors
         // Multi-line comments require start_line and line to be in the same hunk
         // which is complex to validate, so we use single-line comments only
-        if (issue.startLine && issue.endLine && issue.startLine !== issue.endLine) {
-          core.info(`📝 Converting multi-line comment (${issue.startLine}-${issue.endLine}) to single-line comment at line ${issue.lineNumber}`);
+        if (
+          issue.startLine &&
+          issue.endLine &&
+          issue.startLine !== issue.endLine
+        ) {
+          core.info(
+            `📝 Converting multi-line comment (${issue.startLine}-${issue.endLine}) to single-line comment at line ${issue.lineNumber}`
+          );
         }
 
         lineComments.push(lineComment);
@@ -1379,7 +1650,9 @@ class BugmentAction {
       }
     }
 
-    core.info(`📊 Line comments: ${validLineComments} valid, ${invalidLineComments} skipped (not in diff)`);
+    core.info(
+      `📊 Line comments: ${validLineComments} valid, ${invalidLineComments} skipped (not in diff)`
+    );
 
     // Determine the review event based on issues found
     const event = this.determineReviewEvent(reviewResult);
@@ -1391,21 +1664,21 @@ class BugmentAction {
       pull_number: this.prInfo.number,
       body: commentBody,
       event: event,
-      commit_id: this.prInfo.headSha
+      commit_id: this.prInfo.headSha,
     };
 
     // Add line comments if any exist
     if (lineComments.length > 0) {
       reviewParams.comments = lineComments;
-      core.info(`📝 Creating unified review with ${lineComments.length} line comments`);
+      core.info(
+        `📝 Creating unified review with ${lineComments.length} line comments`
+      );
     } else {
       core.info(`📝 Creating review with overview only (no line comments)`);
     }
 
     await this.octokit.rest.pulls.createReview(reviewParams);
   }
-
-
 }
 
 // Main execution
