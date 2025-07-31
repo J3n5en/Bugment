@@ -705,66 +705,100 @@ class BugmentAction {
     }
     async markResolvedLineComments(previousReviews) {
         try {
-            // Get all PR review comments
-            const comments = await this.octokit.rest.pulls.listReviewComments({
-                owner: this.prInfo.owner,
-                repo: this.prInfo.repo,
-                pull_number: this.prInfo.number,
-            });
+            // Use GraphQL to get review threads and resolve them
+            const reviewThreads = await this.getReviewThreadsWithComments();
             let resolvedCount = 0;
             let processedCount = 0;
             // Find previous AI-generated comments that are no longer relevant
-            for (const comment of comments.data) {
-                if (comment.body?.includes('**🐛') || comment.body?.includes('**🔍') ||
-                    comment.body?.includes('**🔒') || comment.body?.includes('**⚡')) {
+            for (const thread of reviewThreads) {
+                if (thread.isResolved) {
+                    continue; // Skip already resolved threads
+                }
+                // Check if this thread contains AI-generated comments
+                const hasAIComment = thread.comments.some((comment) => comment.body?.includes('**🐛') || comment.body?.includes('**🔍') ||
+                    comment.body?.includes('**🔒') || comment.body?.includes('**⚡'));
+                if (hasAIComment) {
                     processedCount++;
-                    // This is likely an AI-generated comment, check if the issue still exists
-                    const isStillRelevant = this.isCommentStillRelevant(comment, previousReviews);
+                    // Check if the issue is still relevant based on the first comment in the thread
+                    const firstComment = thread.comments[0];
+                    const isStillRelevant = this.isCommentStillRelevant(firstComment, previousReviews);
                     if (!isStillRelevant) {
-                        // Instead of adding a reply, we'll update the comment body to mark it as resolved
+                        // Use GraphQL to resolve the conversation
                         try {
-                            const resolvedBody = this.markCommentAsResolved(comment.body || '');
-                            await this.octokit.rest.pulls.updateReviewComment({
-                                owner: this.prInfo.owner,
-                                repo: this.prInfo.repo,
-                                comment_id: comment.id,
-                                body: resolvedBody
-                            });
+                            await this.resolveReviewThread(thread.id);
                             resolvedCount++;
-                            core.info(`✅ Marked comment ${comment.id} as resolved`);
+                            core.info(`✅ Resolved conversation thread ${thread.id}`);
                         }
                         catch (error) {
-                            core.warning(`Failed to mark comment ${comment.id} as resolved: ${error}`);
+                            core.warning(`Failed to resolve thread ${thread.id}: ${error}`);
                         }
                     }
                 }
             }
             if (processedCount > 0) {
-                core.info(`📝 Processed ${processedCount} previous comments, marked ${resolvedCount} as resolved`);
+                core.info(`📝 Processed ${processedCount} review threads, resolved ${resolvedCount} conversations`);
             }
         }
         catch (error) {
-            core.warning(`Failed to process previous line comments: ${error}`);
+            core.warning(`Failed to process review threads: ${error}`);
         }
     }
-    markCommentAsResolved(originalBody) {
-        // Check if already marked as resolved
-        if (originalBody.includes('~~') || originalBody.includes('✅ **已解决**')) {
-            return originalBody;
+    async getReviewThreadsWithComments() {
+        const query = `
+      query($owner: String!, $name: String!, $number: Int!) {
+        repository(owner: $owner, name: $name) {
+          pullRequest(number: $number) {
+            reviewThreads(first: 100) {
+              nodes {
+                id
+                isResolved
+                comments(first: 50) {
+                  nodes {
+                    id
+                    body
+                    path
+                    line
+                    author {
+                      login
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
-        // Add resolved marker at the beginning
-        const resolvedHeader = '✅ **已解决** - 此问题已在后续提交中修复\n\n---\n\n';
-        // Strike through the original content to show it's resolved
-        const lines = originalBody.split('\n');
-        const struckThroughLines = lines.map(line => {
-            if (line.trim() === '')
-                return line;
-            return `~~${line}~~`;
+      }
+    `;
+        try {
+            const response = await this.octokit.graphql(query, {
+                owner: this.prInfo.owner,
+                name: this.prInfo.repo,
+                number: this.prInfo.number,
+            });
+            return response.repository.pullRequest.reviewThreads.nodes || [];
+        }
+        catch (error) {
+            core.warning(`Failed to fetch review threads: ${error}`);
+            return [];
+        }
+    }
+    async resolveReviewThread(threadId) {
+        const mutation = `
+      mutation($threadId: ID!) {
+        resolveReviewThread(input: { threadId: $threadId }) {
+          thread {
+            id
+            isResolved
+          }
+        }
+      }
+    `;
+        await this.octokit.graphql(mutation, {
+            threadId: threadId,
         });
-        return resolvedHeader + struckThroughLines.join('\n');
     }
     isCommentStillRelevant(comment, previousReviews) {
-        // Skip if already marked as resolved
+        // Skip if already marked as resolved (for backward compatibility)
         if (comment.body?.includes('✅ **已解决**') || comment.body?.includes('~~')) {
             return true; // Don't process already resolved comments
         }

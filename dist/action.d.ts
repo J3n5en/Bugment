@@ -35,7 +35,8 @@ declare class BugmentAction {
     private extractSummaryFromReview;
     private getPreviousReviewsAndDismissOld;
     private markResolvedLineComments;
-    private markCommentAsResolved;
+    private getReviewThreadsWithComments;
+    private resolveReviewThread;
     private isCommentStillRelevant;
     private compareReviews;
     private getIssueSignature;
