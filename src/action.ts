@@ -1098,6 +1098,9 @@ class BugmentAction {
         }
       }
 
+      // Hide (minimize) previous Bugment comments as outdated
+      await this.hidePreviousBugmentComments();
+
       // Get previous line-level comments and mark resolved issues
       await this.markResolvedLineComments(reviewResults);
 
@@ -1135,6 +1138,130 @@ class BugmentAction {
       core.warning(`Failed to get previous reviews: ${error}`);
       return [];
     }
+  }
+
+  private async hidePreviousBugmentComments(): Promise<void> {
+    try {
+      core.info("🔍 Looking for previous Bugment comments to hide...");
+
+      // Get current time to avoid hiding very recent comments (within last 30 seconds)
+      const cutoffTime = new Date(Date.now() - 30000); // 30 seconds ago
+
+      // Get all issue comments (PR comments)
+      const issueComments = await this.octokit.rest.issues.listComments({
+        owner: this.prInfo.owner,
+        repo: this.prInfo.repo,
+        issue_number: this.prInfo.number,
+        per_page: 100, // Get more comments to ensure we catch all
+      });
+
+      // Get all review comments (line-level comments)
+      const reviewComments = await this.octokit.rest.pulls.listReviewComments({
+        owner: this.prInfo.owner,
+        repo: this.prInfo.repo,
+        pull_number: this.prInfo.number,
+        per_page: 100, // Get more comments to ensure we catch all
+      });
+
+      const commentsToHide: Array<{
+        id: string;
+        type: "issue" | "review";
+        url: string;
+        createdAt: string;
+      }> = [];
+
+      // Check issue comments for Bugment signatures
+      for (const comment of issueComments.data) {
+        const commentDate = new Date(comment.created_at);
+        if (
+          this.isBugmentComment(comment.body || "") &&
+          commentDate < cutoffTime
+        ) {
+          commentsToHide.push({
+            id: comment.node_id,
+            type: "issue",
+            url: comment.html_url,
+            createdAt: comment.created_at,
+          });
+        }
+      }
+
+      // Check review comments for Bugment signatures
+      for (const comment of reviewComments.data) {
+        const commentDate = new Date(comment.created_at);
+        if (
+          this.isBugmentComment(comment.body || "") &&
+          commentDate < cutoffTime
+        ) {
+          commentsToHide.push({
+            id: comment.node_id,
+            type: "review",
+            url: comment.html_url,
+            createdAt: comment.created_at,
+          });
+        }
+      }
+
+      if (commentsToHide.length > 0) {
+        core.info(
+          `📝 Found ${commentsToHide.length} previous Bugment comments to hide`
+        );
+
+        let hiddenCount = 0;
+        for (const comment of commentsToHide) {
+          try {
+            await this.minimizeComment(comment.id);
+            hiddenCount++;
+            core.info(
+              `✅ Hidden ${comment.type} comment from ${comment.createdAt}: ${comment.url}`
+            );
+          } catch (error) {
+            core.warning(
+              `⚠️ Failed to hide ${comment.type} comment ${comment.id}: ${error}`
+            );
+          }
+        }
+
+        core.info(
+          `🎯 Successfully hidden ${hiddenCount}/${commentsToHide.length} previous Bugment comments`
+        );
+      } else {
+        core.info("ℹ️ No previous Bugment comments found to hide");
+      }
+    } catch (error) {
+      core.warning(`Failed to hide previous Bugment comments: ${error}`);
+    }
+  }
+
+  private isBugmentComment(body: string): boolean {
+    // Check for various Bugment signatures in comment body
+    const bugmentSignatures = [
+      "Bugment Code Review",
+      "Bugment AI Code Review",
+      "🤖 Powered by Bugment",
+      "REVIEW_DATA:",
+      // Add signatures for line-level comments
+      "**🐛 潜在 Bug**",
+      "**🔍 代码异味**",
+      "**🔒 安全问题**",
+      "**⚡ 性能问题**",
+    ];
+
+    return bugmentSignatures.some((signature) => body.includes(signature));
+  }
+
+  private async minimizeComment(commentNodeId: string): Promise<void> {
+    const mutation = `
+      mutation minimizeComment($id: ID!) {
+        minimizeComment(input: { classifier: OUTDATED, subjectId: $id }) {
+          clientMutationId
+        }
+      }
+    `;
+
+    await this.octokit.graphql(mutation, {
+      id: commentNodeId,
+    });
   }
 
   private async markResolvedLineComments(
