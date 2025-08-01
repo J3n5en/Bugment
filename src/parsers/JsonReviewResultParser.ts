@@ -112,12 +112,33 @@ export class JsonReviewResultParser {
    * 清理 JSON 字符串，移除可能的 Markdown 包装
    */
   private cleanJsonString(jsonString: string): string {
-    // 使用单个正则表达式移除 markdown 代码块包装
-    return jsonString
-      .trim()
-      .replace(/^```(?:json)?\s*/, "") // 移除开始的 ```json 或 ```
-      .replace(/\s*```$/, "") // 移除结尾的 ```
-      .trim();
+    let cleaned = jsonString.trim();
+
+    // 移除 markdown 代码块包装
+    cleaned = cleaned.replace(/^```(?:json)?\s*/, "");
+    cleaned = cleaned.replace(/\s*```[\s\S]*$/, "");
+
+    // 尝试提取有效的 JSON 部分
+    // 查找第一个 { 和最后一个匹配的 }
+    const firstBrace = cleaned.indexOf("{");
+    if (firstBrace === -1) return cleaned;
+
+    let braceCount = 0;
+    let lastValidIndex = firstBrace;
+
+    for (let i = firstBrace; i < cleaned.length; i++) {
+      if (cleaned[i] === "{") {
+        braceCount++;
+      } else if (cleaned[i] === "}") {
+        braceCount--;
+        if (braceCount === 0) {
+          lastValidIndex = i;
+          break;
+        }
+      }
+    }
+
+    return cleaned.substring(firstBrace, lastValidIndex + 1);
   }
 
   /**

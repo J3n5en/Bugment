@@ -187,4 +187,52 @@ describe("JsonReviewResultParser", () => {
       expect(stats.bySeverity).toEqual({});
     });
   });
+
+  describe("JSON cleaning with extra content", () => {
+    it("should handle JSON with trailing content", () => {
+      const jsonWithTrailing = `{
+  "summary": {
+    "overallComments": ["Test comment"]
+  },
+  "issues": [
+    {
+      "id": "test_1",
+      "type": "bug",
+      "severity": "medium",
+      "title": "Test Issue",
+      "description": "Test description",
+      "location": "test.js#L1",
+      "filePath": "test.js",
+      "lineNumber": 1
+    }
+  ]
+}
+---
+*Your access expires in 2 days.*`;
+
+      const result = parser.parseReviewResult(jsonWithTrailing);
+
+      expect(result.issues).toHaveLength(1);
+      expect(result.issues[0]?.title).toBe("Test Issue");
+      expect(result.summary).toContain("Test comment");
+    });
+
+    it("should handle JSON with markdown wrapper and trailing content", () => {
+      const jsonWithWrapper = `\`\`\`json
+{
+  "summary": {
+    "overallComments": ["Wrapped test"]
+  },
+  "issues": []
+}
+\`\`\`
+
+Additional text that should be ignored.`;
+
+      const result = parser.parseReviewResult(jsonWithWrapper);
+
+      expect(result.issues).toHaveLength(0);
+      expect(result.summary).toContain("Wrapped test");
+    });
+  });
 });
