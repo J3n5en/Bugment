@@ -1287,7 +1287,7 @@ class BugmentAction {
         }
 
         // Check if this thread contains AI-generated comments
-        const hasAIComment = thread.comments.some(
+        const hasAIComment = thread.comments?.some(
           (comment: any) =>
             comment.body?.includes("**🐛") ||
             comment.body?.includes("**🔍") ||
