@@ -5,3 +5,4 @@
 export * from "./ValidationUtils";
 export * from "./ComparisonUtils";
 export * from "./FormatUtils";
+export * from "./IgnoreManager";

@@ -11,7 +11,7 @@ import { ReviewFormatter } from "./formatters/ReviewFormatter";
 import { ReviewWorkflow } from "./core/ReviewWorkflow";
 import { ValidationUtils } from "./utils/ValidationUtils";
 import { ComparisonUtils } from "./utils/ComparisonUtils";
-import { IgnoreManager } from "./ignore-manager";
+import { IgnoreManager } from "./utils/IgnoreManager";
 
 /**
  * 重构后的 Bugment Action 类

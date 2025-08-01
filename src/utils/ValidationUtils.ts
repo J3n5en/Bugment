@@ -1,10 +1,10 @@
 import * as core from "@actions/core";
-import { 
-  ReviewIssue, 
-  ReviewResult, 
-  ActionInputs, 
+import {
+  ReviewIssue,
+  ReviewResult,
+  ActionInputs,
   PullRequestInfo,
-  LocationInfo 
+  LocationInfo,
 } from "../core/types";
 
 /**
@@ -12,7 +12,6 @@ import {
  * 提供各种数据验证功能
  */
 export class ValidationUtils {
-
   /**
    * 验证 Action 输入
    */
@@ -154,7 +153,9 @@ export class ValidationUtils {
       issue.endLine !== undefined &&
       issue.startLine > issue.endLine
     ) {
-      core.warning(`Start line (${issue.startLine}) is greater than end line (${issue.endLine})`);
+      core.warning(
+        `Start line (${issue.startLine}) is greater than end line (${issue.endLine})`
+      );
       return false;
     }
 
@@ -181,9 +182,8 @@ export class ValidationUtils {
     }
 
     // 验证时间戳格式
-    try {
-      new Date(reviewResult.timestamp);
-    } catch (error) {
+    const date = new Date(reviewResult.timestamp);
+    if (isNaN(date.getTime())) {
       core.error(`Invalid timestamp format: ${reviewResult.timestamp}`);
       return false;
     }

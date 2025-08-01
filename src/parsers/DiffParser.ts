@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import { DiffHunk, ParsedDiff } from "../core/types";
-import { IgnoreManager } from "../ignore-manager";
+import { IgnoreManager } from "../utils/IgnoreManager";
 
 /**
  * Diff 解析器类
@@ -135,7 +135,11 @@ export class DiffParser {
   /**
    * 检查行是否在 diff 范围内
    */
-  isLineInDiff(filePath: string, lineNumber: number, parsedDiff: ParsedDiff): boolean {
+  isLineInDiff(
+    filePath: string,
+    lineNumber: number,
+    parsedDiff: ParsedDiff
+  ): boolean {
     core.info(
       `🔍 Checking line ${filePath}:${lineNumber} - validation enabled for PR commit range`
     );

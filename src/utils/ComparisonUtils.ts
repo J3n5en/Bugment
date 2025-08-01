@@ -6,7 +6,6 @@ import { ReviewResult, ReviewComparison, ReviewIssue } from "../core/types";
  * 提供审查结果比较功能
  */
 export class ComparisonUtils {
-
   /**
    * 比较当前审查与历史审查结果
    */
@@ -44,7 +43,8 @@ export class ComparisonUtils {
     const newIssues: ReviewIssue[] = [];
     const fixedIssues: ReviewIssue[] = [];
     const persistentIssues: ReviewIssue[] = [];
-    const modifiedIssues: { previous: ReviewIssue; current: ReviewIssue }[] = [];
+    const modifiedIssues: { previous: ReviewIssue; current: ReviewIssue }[] =
+      [];
 
     // 创建映射以便快速查找
     const currentIssueMap = new Map(
@@ -226,15 +226,15 @@ export class ComparisonUtils {
     if (issues.length === 0) return null;
 
     const severityOrder = ["critical", "high", "medium", "low"];
-    
+
     for (const severity of severityOrder) {
       const issuesWithSeverity = issues.filter((i) => i.severity === severity);
       if (issuesWithSeverity.length > 0) {
-        return issuesWithSeverity[0];
+        return issuesWithSeverity[0] || null;
       }
     }
 
-    return issues[0];
+    return issues[0] || null;
   }
 
   /**
@@ -305,7 +305,7 @@ export class ComparisonUtils {
   ): ReviewIssue[] {
     const severityOrder = ["low", "medium", "high", "critical"];
     const minIndex = severityOrder.indexOf(minSeverity);
-    
+
     return issues.filter((issue) => {
       const issueIndex = severityOrder.indexOf(issue.severity);
       return issueIndex >= minIndex;

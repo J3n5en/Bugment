@@ -1,6 +1,10 @@
 // Simple unit tests for core functionality
-import { ReviewIssue, ReviewResult, ReviewComparison } from "../src/core/types";
-import { ComparisonUtils } from "../src/utils/ComparisonUtils";
+import {
+  ReviewIssue,
+  ReviewResult,
+  ReviewComparison,
+} from "../../../src/core/types";
+import { ComparisonUtils } from "../../../src/utils/ComparisonUtils";
 
 describe("Bugment Review System", () => {
   // Use utility functions from the new modules

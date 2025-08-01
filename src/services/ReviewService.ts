@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
-import { performCodeReview, ReviewOptions } from "../review";
-import { PullRequestInfo, ReviewOptions as CoreReviewOptions } from "../core/types";
+import { performCodeReview, ReviewOptions } from "./AugmentClient";
+import { PullRequestInfo } from "../core/types";
 
 /**
  * 代码审查服务类
@@ -127,10 +127,10 @@ Review Options Summary:
   async cleanupReviewEnvironment(): Promise<void> {
     try {
       core.info("🧹 Cleaning up review environment...");
-      
+
       // 这里可以添加清理逻辑，例如删除临时文件
       // 目前只是记录日志
-      
+
       core.info("✅ Review environment cleaned up");
     } catch (error) {
       core.warning(`Failed to cleanup review environment: ${error}`);
