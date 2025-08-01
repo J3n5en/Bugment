@@ -791,6 +791,7 @@ class BugmentAction {
     // "src/components/Button.tsx:45"
     // "src/utils/helper.js:12-18"
     // "README.md#L25-L30"
+    // "https://github.com/owner/repo/blob/sha/src/index.ts#L129-L133"
     // "[index.ts:16" (malformed format that we need to handle)
 
     // Handle malformed format with leading bracket
@@ -800,9 +801,31 @@ class BugmentAction {
       core.info(`🔧 Cleaned malformed location: "${cleanLocation}"`);
     }
 
-    const fileLineMatch = cleanLocation.match(/^([^:]+):(\d+)(?:-(\d+))?/);
-    const githubLineMatch = cleanLocation.match(/^([^#]+)#L(\d+)(?:-L(\d+))?/);
+    // Parse GitHub URL format: https://github.com/owner/repo/blob/sha/path/to/file.ext#L123-L456
+    const githubUrlMatch = cleanLocation.match(
+      /^https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/(.+?)#L(\d+)(?:-L(\d+))?$/
+    );
 
+    if (githubUrlMatch) {
+      const [, filePath, startLineStr, endLineStr] = githubUrlMatch;
+      if (filePath && startLineStr) {
+        const startLine = parseInt(startLineStr, 10);
+        const endLine = endLineStr ? parseInt(endLineStr, 10) : undefined;
+
+        const result = {
+          filePath: filePath.trim(),
+          lineNumber: endLine || startLine,
+          startLine,
+          endLine,
+        };
+
+        core.info(`✅ Parsed GitHub URL format: ${JSON.stringify(result)}`);
+        return result;
+      }
+    }
+
+    // Parse simple file:line format
+    const fileLineMatch = cleanLocation.match(/^([^:]+):(\d+)(?:-(\d+))?/);
     if (fileLineMatch) {
       const [, filePath, startLineStr, endLineStr] = fileLineMatch;
       if (filePath && startLineStr) {
@@ -821,6 +844,8 @@ class BugmentAction {
       }
     }
 
+    // Parse GitHub-style format: file#L123-L456
+    const githubLineMatch = cleanLocation.match(/^([^#]+)#L(\d+)(?:-L(\d+))?/);
     if (githubLineMatch) {
       const [, filePath, startLineStr, endLineStr] = githubLineMatch;
       if (filePath && startLineStr) {

@@ -106,7 +106,7 @@
 
 **描述**: <详细说明>
 
-**位置**: 文件路径:行号 (例如: src/components/Button.tsx#L45 或 src/utils/helper.js#L12-18)
+**位置**: 文件路径:行号 (例如: src/components/Button.tsx#L45 或 src/utils/helper.js#L12-L18)
 
 **建议修改**: <具体的代码修改建议，如果适用>
 
