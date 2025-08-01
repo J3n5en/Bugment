@@ -801,6 +801,17 @@ class BugmentAction {
       core.info(`🔧 Cleaned malformed location: "${cleanLocation}"`);
     }
 
+    // Handle multiple locations separated by commas - this should not happen with updated prompt
+    if (cleanLocation.includes(",")) {
+      const firstLocation = cleanLocation.split(",")[0]?.trim();
+      if (firstLocation) {
+        core.warning(
+          `⚠️ Multiple locations found (this should not happen with updated prompt), using first: "${firstLocation}"`
+        );
+        cleanLocation = firstLocation;
+      }
+    }
+
     // Parse GitHub URL format: https://github.com/owner/repo/blob/sha/path/to/file.ext#L123-L456
     const githubUrlMatch = cleanLocation.match(
       /^https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/(.+?)#L(\d+)(?:-L(\d+))?$/
