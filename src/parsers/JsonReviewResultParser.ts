@@ -26,6 +26,13 @@ export class JsonReviewResultParser {
   parseReviewResult(reviewResult: string): ReviewResult {
     core.info("🔍 Starting to parse JSON review result...");
 
+    // 调试：打印原始 LLM 输出
+    core.info("📝 Raw LLM output (first 500 chars):");
+    core.info(reviewResult.substring(0, 500));
+    core.info("📝 Raw LLM output (last 500 chars):");
+    core.info(reviewResult.substring(Math.max(0, reviewResult.length - 500)));
+    core.info(`📏 Total output length: ${reviewResult.length} characters`);
+
     // 生成唯一的审查 ID
     const prId = `pr${this.prInfo.number}`;
     const commitShort = this.prInfo.headSha.substring(0, 8);
@@ -36,6 +43,15 @@ export class JsonReviewResultParser {
     try {
       // 清理可能的 JSON 包装（如果 LLM 输出包含 ```json 标记）
       const cleanedResult = this.cleanJsonString(reviewResult);
+
+      // 调试：打印清理后的内容
+      core.info("🧹 Cleaned result (first 500 chars):");
+      core.info(cleanedResult.substring(0, 500));
+      core.info("🧹 Cleaned result (last 500 chars):");
+      core.info(
+        cleanedResult.substring(Math.max(0, cleanedResult.length - 500))
+      );
+      core.info(`📏 Cleaned length: ${cleanedResult.length} characters`);
 
       // 解析 JSON
       const parsedData = JSON.parse(cleanedResult);
@@ -64,6 +80,23 @@ export class JsonReviewResultParser {
       return result;
     } catch (error) {
       core.error(`❌ Failed to parse JSON review result: ${error}`);
+
+      // 调试：提供更详细的错误信息
+      if (error instanceof SyntaxError) {
+        core.error(`🔍 JSON Syntax Error Details:`);
+        core.error(`   Error message: ${error.message}`);
+        if (error.message.includes("position")) {
+          const positionMatch = error.message.match(/position (\d+)/);
+          if (positionMatch && positionMatch[1]) {
+            const position = parseInt(positionMatch[1]);
+            const start = Math.max(0, position - 50);
+            const end = Math.min(reviewResult.length, position + 50);
+            core.error(`   Context around position ${position}:`);
+            core.error(`   "${reviewResult.substring(start, end)}"`);
+            core.error(`   ${"".padStart(position - start, " ")}^`);
+          }
+        }
+      }
 
       // 回退到空结果
       return {
