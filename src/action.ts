@@ -6,6 +6,7 @@ import { AugmentService } from "./services/AugmentService";
 import { ReviewService } from "./services/ReviewService";
 import { DiffParser } from "./parsers/DiffParser";
 import { ReviewResultParser } from "./parsers/ReviewResultParser";
+import { JsonReviewResultParser } from "./parsers/JsonReviewResultParser";
 import { CommentFormatter } from "./formatters/CommentFormatter";
 import { ReviewFormatter } from "./formatters/ReviewFormatter";
 import { ReviewWorkflow } from "./core/ReviewWorkflow";
@@ -25,7 +26,9 @@ export class BugmentAction {
   private reviewService: ReviewService;
   private diffParser: DiffParser;
   private reviewResultParser: ReviewResultParser;
+  private jsonReviewResultParser: JsonReviewResultParser;
   private commentFormatter: CommentFormatter;
+  private useJsonParser: boolean;
   private reviewFormatter: ReviewFormatter;
   private ignoreManager: IgnoreManager;
 
@@ -52,8 +55,12 @@ export class BugmentAction {
     this.ignoreManager = new IgnoreManager(process.cwd());
     this.diffParser = new DiffParser(this.ignoreManager);
     this.reviewResultParser = new ReviewResultParser(prInfo);
+    this.jsonReviewResultParser = new JsonReviewResultParser(prInfo);
     this.commentFormatter = new CommentFormatter();
     this.reviewFormatter = new ReviewFormatter();
+
+    // 默认使用 JSON 解析器，可以通过环境变量控制
+    this.useJsonParser = process.env.BUGMENT_USE_JSON_PARSER !== "false";
   }
 
   /**
@@ -140,9 +147,21 @@ export class BugmentAction {
     // 执行审查
     const reviewResultText = await this.reviewService.performReview(diffPath);
 
-    // 解析审查结果
-    const reviewResult =
-      this.reviewResultParser.parseReviewResult(reviewResultText);
+    // 解析审查结果 - 根据配置选择解析器
+    const reviewResult = this.useJsonParser
+      ? this.jsonReviewResultParser.parseReviewResult(reviewResultText)
+      : this.reviewResultParser.parseReviewResult(reviewResultText);
+
+    core.info(
+      `📊 Used ${this.useJsonParser ? "JSON" : "Markdown"} parser for review result`
+    );
+
+    // 记录解析统计信息
+    if (this.useJsonParser) {
+      const stats =
+        this.jsonReviewResultParser.getParsingStats(reviewResultText);
+      core.info(`📈 JSON parsing stats: ${JSON.stringify(stats)}`);
+    }
 
     // 验证审查结果
     if (!ValidationUtils.validateReviewResult(reviewResult)) {

@@ -114,3 +114,41 @@ export interface SeverityDistribution {
 
 export type ReviewIssueType = ReviewIssue["type"];
 export type ReviewIssueSeverity = ReviewIssue["severity"];
+
+// JSON 解析相关接口
+export interface JsonReviewData {
+  summary: {
+    overallComments: string[];
+  };
+  issues: JsonIssueData[];
+}
+
+export interface JsonIssueData {
+  id: string;
+  type: ReviewIssueType;
+  severity: ReviewIssueSeverity;
+  title: string;
+  description: string;
+  location: string;
+  filePath: string;
+  lineNumber?: number;
+  startLine?: number;
+  endLine?: number;
+  fixPrompt?: string;
+  suggestion?: string;
+}
+
+// 解析统计信息
+export interface ParsingStats {
+  isValidJson: boolean;
+  hasIssues: boolean;
+  hasSummary: boolean;
+  estimatedIssueCount: number;
+}
+
+// 问题统计信息
+export interface IssueStatistics {
+  totalIssues: number;
+  byType: Record<string, number>;
+  bySeverity: Record<string, number>;
+}
