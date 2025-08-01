@@ -1,4 +1,4 @@
-import { BugmentAction } from '../src/action';
+import { DiffParser } from '../src/parsers/DiffParser';
 
 // Test diff parsing and validation
 describe('Diff Validation', () => {
@@ -13,18 +13,18 @@ index 1234567..abcdefg 100644
 +  console.log('new');
 +  console.log('added line');
  }
- 
+
  function another() {
 @@ -10,3 +12,4 @@ function another() {
  }
- 
+
  export { test };
 +// New comment
 `;
 
-    // We need to access the private method for testing
-    const action = new BugmentAction();
-    const parsedDiff = (action as any).parseDiffContent(sampleDiff);
+    // Use the new DiffParser module
+    const diffParser = new DiffParser();
+    const parsedDiff = diffParser.parseDiffContent(sampleDiff);
     
     expect(parsedDiff.files.has('src/test.ts')).toBe(true);
     
