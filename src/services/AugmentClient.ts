@@ -6,7 +6,7 @@ import { EventEmitter } from "events";
 import * as path from "path";
 import pRetry from "p-retry";
 import pTimeout from "p-timeout";
-interface ReviewOptions {
+export interface AugmentReviewOptions {
   projectPath: string;
   prTitle: string;
   prDescription: string;
@@ -342,7 +342,7 @@ export class AugmentIPCClient extends EventEmitter {
 }
 
 async function loadPromptTemplate(): Promise<string> {
-  const promptPath = path.join(__dirname, "prompt.md");
+  const promptPath = path.join(__dirname, "..", "templates", "prompt.md");
   return fs.readFileSync(promptPath, "utf-8");
 }
 
@@ -355,7 +355,7 @@ async function readDiffFile(diffPath: string): Promise<string> {
 
 function formatPrompt(
   template: string,
-  options: ReviewOptions,
+  options: AugmentReviewOptions,
   diffContent: string
 ): string {
   // 构建 GitHub 仓库链接信息
@@ -376,7 +376,9 @@ function formatPrompt(
   );
 }
 
-async function performCodeReview(options: ReviewOptions): Promise<string> {
+async function performCodeReview(
+  options: AugmentReviewOptions
+): Promise<string> {
   const client = new AugmentIPCClient();
 
   try {
@@ -418,4 +420,4 @@ async function performCodeReview(options: ReviewOptions): Promise<string> {
   }
 }
 
-export { performCodeReview, ReviewOptions };
+export { performCodeReview, AugmentReviewOptions as ReviewOptions };

@@ -11,7 +11,7 @@
 6. 为每一条 Code Smell / Bug 提供：
    - **严重程度**
    - **描述**（问题是什么、为什么是问题、影响）
-   - **位置**（精确的文件路径和行号，格式：文件路径:行号 或 文件路径:开始行-结束行）
+   - **位置**（精确的单一文件路径和行号，格式：文件路径#L行号 或 文件路径#L开始行-L结束行，每个问题只能有一个位置）
    - **建议修改**（可选，提供具体的代码修改建议）
    - **AI修复Prompt**：简短英文指令，足够让编程型 LLM自动生成修复补丁。
 
@@ -21,7 +21,11 @@
 - **PR描述**: {PR_DESCRIPTION}
 - **变更文件差异**: {DIFF_CONTENT}
 
-注意：如果输入中包含 GitHub 仓库信息，请在位置部分使用完整的 GitHub 链接格式。
+注意：
+
+- 如果输入中包含 GitHub 仓库信息，请在位置部分使用完整的 GitHub 链接格式。
+- 每个问题必须指定一个具体的位置，不要使用逗号分隔多个位置。
+- 如果问题涉及多个位置，请为每个位置创建单独的问题条目。
 
 ## 评审限制
 
@@ -53,9 +57,13 @@
 ## 1. <CS‑1 简短标题>
 
 **严重程度**: 🟡 **中等**
+
 **描述**: <详细说明问题及其影响>
-**位置**: 文件路径#L行号 (例如: src/components/Button.tsx:#L7 或 src/utils/helper.js#L7-L10)
+
+**位置**: 文件路径#L行号 (例如: src/components/Button.tsx#L7 或 src/utils/helper.js#L7-L10)
+
 **建议修改**: <具体的代码修改建议，如果适用>
+
 **AI修复Prompt**:
 
 ```
@@ -65,9 +73,13 @@
 ## 2. <CS‑2 简短标题>
 
 **严重程度**: 🟢 **轻微**
+
 **描述**: <详细说明>
-**位置**: 文件路径#L行号 (例如: src/components/Button.tsx:#L7 或 src/utils/helper.js#L7-L10)
+
+**位置**: 文件路径#L行号 (例如: src/components/Button.tsx#L7 或 src/utils/helper.js#L7-L10)
+
 **建议修改**: <具体的代码修改建议，如果适用>
+
 **AI修复Prompt**:
 
 ```
@@ -79,9 +91,13 @@
 ## 1. <B‑1 简短标题>
 
 **严重程度**: 🟢 **轻微**
+
 **描述**: <详细说明问题及其影响>
-**位置**: 文件路径#L行号 (例如: src/components/Button.tsx:#L7 或 src/utils/helper.js#L7-L10)
+
+**位置**: 文件路径#L行号 (例如: src/components/Button.tsx#L7 或 src/utils/helper.js#L7-L10)
+
 **建议修改**: <具体的代码修改建议，如果适用>
+
 **AI修复Prompt**:
 
 ```
@@ -91,9 +107,13 @@
 ## 2. <B‑2 简短标题>
 
 **严重程度**: 🟢 **轻微**
+
 **描述**: <详细说明>
-**位置**: 文件路径:行号 (例如: src/components/Button.tsx#L45 或 src/utils/helper.js#L12-18)
+
+**位置**: 文件路径#L行号 (例如: src/components/Button.tsx#L45 或 src/utils/helper.js#L12-L18)
+
 **建议修改**: <具体的代码修改建议，如果适用>
+
 **AI修复Prompt**:
 
 ```
@@ -104,10 +124,14 @@
 
 ## 1. <S‑1 简短标题>
 
-**严重程度**: 🟢 **轻微**  
+**严重程度**: 🟢 **轻微**
+
 **描述**: <安全问题详细说明>
-**位置**: 文件路径:行号 (例如: src/components/Button.tsx#L45 或 src/utils/helper.js#L12-18)
+
+**位置**: 文件路径#L行号 (例如: src/components/Button.tsx#L45 或 src/utils/helper.js#L12-L18)
+
 **建议修改**: <具体的代码修改建议，如果适用>
+
 **AI修复Prompt**:
 
 ```
@@ -119,9 +143,13 @@
 ## 1. <P‑1 简短标题>
 
 **严重程度**: 🔴 **严重**
+
 **描述**: <性能问题详细说明>
-**位置**: 文件路径:行号 (例如: src/components/Button.tsx#L45 或 src/utils/helper.js#L12-18)
+
+**位置**: 文件路径#L行号 (例如: src/components/Button.tsx#L45 或 src/utils/helper.js#L12-L18)
+
 **建议修改**: <具体的代码修改建议，如果适用>
+
 **AI修复Prompt**:
 
 ```
