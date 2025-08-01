@@ -5,15 +5,16 @@ import {
   ReviewComparison,
 } from "../../../src/core/types";
 import { ComparisonUtils } from "../../../src/utils/ComparisonUtils";
+import { IssueUtils } from "../../../src/utils/IssueUtils";
 
 describe("Bugment Review System", () => {
   // Use utility functions from the new modules
   function getIssueSignature(issue: ReviewIssue): string {
-    return ComparisonUtils.getIssueSignature(issue);
+    return IssueUtils.createIssueSignature(issue);
   }
 
   function issuesAreSimilar(issue1: ReviewIssue, issue2: ReviewIssue): boolean {
-    return ComparisonUtils.issuesAreSimilar(issue1, issue2);
+    return IssueUtils.areIssuesSimilar(issue1, issue2);
   }
 
   function compareReviews(

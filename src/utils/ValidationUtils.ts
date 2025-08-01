@@ -16,25 +16,24 @@ export class ValidationUtils {
    * 验证 Action 输入
    */
   static validateActionInputs(inputs: ActionInputs): boolean {
-    if (!inputs.augmentAccessToken || inputs.augmentAccessToken.trim() === "") {
-      core.error("Augment access token is required");
-      return false;
-    }
+    const requiredFields = [
+      { field: inputs.augmentAccessToken, name: "Augment access token" },
+      { field: inputs.augmentTenantUrl, name: "Augment tenant URL" },
+      { field: inputs.githubToken, name: "GitHub token" },
+    ];
 
-    if (!inputs.augmentTenantUrl || inputs.augmentTenantUrl.trim() === "") {
-      core.error("Augment tenant URL is required");
-      return false;
-    }
-
-    if (!inputs.githubToken || inputs.githubToken.trim() === "") {
-      core.error("GitHub token is required");
-      return false;
+    // 检查必需字段
+    for (const { field, name } of requiredFields) {
+      if (!field?.trim()) {
+        core.error(`${name} is required`);
+        return false;
+      }
     }
 
     // 验证 URL 格式
     try {
       new URL(inputs.augmentTenantUrl);
-    } catch (error) {
+    } catch {
       core.error(`Invalid Augment tenant URL: ${inputs.augmentTenantUrl}`);
       return false;
     }
@@ -47,45 +46,36 @@ export class ValidationUtils {
    * 验证 PR 信息
    */
   static validatePullRequestInfo(prInfo: PullRequestInfo): boolean {
+    // 验证数字字段
     if (!prInfo.number || prInfo.number <= 0) {
       core.error("Invalid PR number");
       return false;
     }
 
-    if (!prInfo.title || prInfo.title.trim() === "") {
-      core.error("PR title is required");
-      return false;
+    // 验证必需的字符串字段
+    const requiredStringFields = [
+      { field: prInfo.title, name: "PR title" },
+      { field: prInfo.baseSha, name: "Base SHA" },
+      { field: prInfo.headSha, name: "Head SHA" },
+      { field: prInfo.owner, name: "Repository owner" },
+      { field: prInfo.repo, name: "Repository name" },
+    ];
+
+    for (const { field, name } of requiredStringFields) {
+      if (!field?.trim()) {
+        core.error(`${name} is required`);
+        return false;
+      }
     }
 
-    if (!prInfo.baseSha || prInfo.baseSha.trim() === "") {
-      core.error("Base SHA is required");
-      return false;
-    }
-
-    if (!prInfo.headSha || prInfo.headSha.trim() === "") {
-      core.error("Head SHA is required");
-      return false;
-    }
-
-    if (!prInfo.owner || prInfo.owner.trim() === "") {
-      core.error("Repository owner is required");
-      return false;
-    }
-
-    if (!prInfo.repo || prInfo.repo.trim() === "") {
-      core.error("Repository name is required");
-      return false;
-    }
-
-    // 验证 SHA 格式（应该是 40 个字符的十六进制字符串）
+    // 验证 SHA 格式
     const shaPattern = /^[a-f0-9]{40}$/i;
-    if (!shaPattern.test(prInfo.baseSha)) {
-      core.warning(`Base SHA format may be invalid: ${prInfo.baseSha}`);
-    }
-
-    if (!shaPattern.test(prInfo.headSha)) {
-      core.warning(`Head SHA format may be invalid: ${prInfo.headSha}`);
-    }
+    [prInfo.baseSha, prInfo.headSha].forEach((sha, index) => {
+      if (!shaPattern.test(sha)) {
+        const type = index === 0 ? "Base" : "Head";
+        core.warning(`${type} SHA format may be invalid: ${sha}`);
+      }
+    });
 
     core.info("✅ Pull request info validation passed");
     return true;
@@ -95,44 +85,35 @@ export class ValidationUtils {
    * 验证审查问题
    */
   static validateReviewIssue(issue: ReviewIssue): boolean {
-    if (!issue.id || issue.id.trim() === "") {
-      core.warning("Issue ID is missing");
-      return false;
+    // 验证必需的字符串字段
+    const requiredFields = [
+      { field: issue.id, name: "Issue ID" },
+      { field: issue.title, name: "Issue title" },
+      { field: issue.description, name: "Issue description" },
+    ];
+
+    for (const { field, name } of requiredFields) {
+      if (!field?.trim()) {
+        core.warning(`${name} is missing`);
+        return false;
+      }
     }
 
-    if (!issue.type) {
-      core.warning("Issue type is missing");
-      return false;
-    }
-
+    // 验证枚举字段
     const validTypes = ["bug", "code_smell", "security", "performance"];
+    const validSeverities = ["low", "medium", "high", "critical"];
+
     if (!validTypes.includes(issue.type)) {
       core.warning(`Invalid issue type: ${issue.type}`);
       return false;
     }
 
-    if (!issue.severity) {
-      core.warning("Issue severity is missing");
-      return false;
-    }
-
-    const validSeverities = ["low", "medium", "high", "critical"];
     if (!validSeverities.includes(issue.severity)) {
       core.warning(`Invalid issue severity: ${issue.severity}`);
       return false;
     }
 
-    if (!issue.title || issue.title.trim() === "") {
-      core.warning("Issue title is missing");
-      return false;
-    }
-
-    if (!issue.description || issue.description.trim() === "") {
-      core.warning("Issue description is missing");
-      return false;
-    }
-
-    // 验证行号（如果存在）
+    // 验证行号
     if (issue.lineNumber !== undefined && issue.lineNumber <= 0) {
       core.warning(`Invalid line number: ${issue.lineNumber}`);
       return false;

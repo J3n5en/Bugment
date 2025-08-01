@@ -3,8 +3,6 @@ import {
   ReviewResult,
   ReviewIssue,
   PullRequestInfo,
-  JsonReviewData,
-  JsonIssueData,
   ParsingStats,
   IssueStatistics,
 } from "../core/types";
@@ -114,20 +112,12 @@ export class JsonReviewResultParser {
    * 清理 JSON 字符串，移除可能的 Markdown 包装
    */
   private cleanJsonString(jsonString: string): string {
-    let cleaned = jsonString.trim();
-
-    // 移除 ```json 和 ``` 包装
-    if (cleaned.startsWith("```json")) {
-      cleaned = cleaned.replace(/^```json\s*/, "");
-    }
-    if (cleaned.startsWith("```")) {
-      cleaned = cleaned.replace(/^```\s*/, "");
-    }
-    if (cleaned.endsWith("```")) {
-      cleaned = cleaned.replace(/\s*```$/, "");
-    }
-
-    return cleaned.trim();
+    // 使用单个正则表达式移除 markdown 代码块包装
+    return jsonString
+      .trim()
+      .replace(/^```(?:json)?\s*/, "") // 移除开始的 ```json 或 ```
+      .replace(/\s*```$/, "") // 移除结尾的 ```
+      .trim();
   }
 
   /**
@@ -138,14 +128,9 @@ export class JsonReviewResultParser {
       throw new Error("Invalid JSON: root must be an object");
     }
 
-    if (!data.summary || typeof data.summary !== "object") {
-      core.warning("Missing or invalid summary object");
-    }
-
-    if (!Array.isArray(data.issues)) {
-      core.warning("Missing or invalid issues array");
-      data.issues = [];
-    }
+    // 确保必要字段存在，使用默认值
+    data.summary = data.summary || {};
+    data.issues = Array.isArray(data.issues) ? data.issues : [];
   }
 
   /**
@@ -227,15 +212,14 @@ export class JsonReviewResultParser {
    * 验证问题类型
    */
   private validateIssueType(type: any): ReviewIssue["type"] {
-    const validTypes: ReviewIssue["type"][] = [
+    const validTypes = [
       "bug",
       "code_smell",
       "security",
       "performance",
-    ];
-    if (validTypes.includes(type)) {
-      return type;
-    }
+    ] as const;
+    if (validTypes.includes(type)) return type;
+
     core.warning(`Invalid issue type: ${type}, defaulting to 'code_smell'`);
     return "code_smell";
   }
@@ -244,15 +228,9 @@ export class JsonReviewResultParser {
    * 验证严重程度
    */
   private validateSeverity(severity: any): ReviewIssue["severity"] {
-    const validSeverities: ReviewIssue["severity"][] = [
-      "low",
-      "medium",
-      "high",
-      "critical",
-    ];
-    if (validSeverities.includes(severity)) {
-      return severity;
-    }
+    const validSeverities = ["low", "medium", "high", "critical"] as const;
+    if (validSeverities.includes(severity)) return severity;
+
     core.warning(`Invalid severity: ${severity}, defaulting to 'medium'`);
     return "medium";
   }
@@ -261,16 +239,8 @@ export class JsonReviewResultParser {
    * 解析数字字段
    */
   private parseNumber(value: any): number | undefined {
-    if (typeof value === "number" && !isNaN(value)) {
-      return value;
-    }
-    if (typeof value === "string") {
-      const parsed = parseInt(value, 10);
-      if (!isNaN(parsed)) {
-        return parsed;
-      }
-    }
-    return undefined;
+    const num = typeof value === "number" ? value : parseInt(value, 10);
+    return !isNaN(num) ? num : undefined;
   }
 
   /**

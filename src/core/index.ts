@@ -3,5 +3,4 @@
  */
 
 export * from "./types";
-export * from "./BugmentCore";
 export * from "./ReviewWorkflow";

@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import { ReviewResult, ReviewComparison, ReviewIssue } from "../core/types";
+import { IssueUtils } from "./IssueUtils";
 
 /**
  * 比较工具类
@@ -49,25 +50,25 @@ export class ComparisonUtils {
     // 创建映射以便快速查找
     const currentIssueMap = new Map(
       currentReview.issues.map((issue) => [
-        this.getIssueSignature(issue),
+        IssueUtils.createIssueSignature(issue),
         issue,
       ])
     );
     const previousIssueMap = new Map(
       latestPreviousReview.issues.map((issue) => [
-        this.getIssueSignature(issue),
+        IssueUtils.createIssueSignature(issue),
         issue,
       ])
     );
 
     // 查找新问题和持续存在的问题
     for (const currentIssue of currentReview.issues) {
-      const signature = this.getIssueSignature(currentIssue);
+      const signature = IssueUtils.createIssueSignature(currentIssue);
       const previousIssue = previousIssueMap.get(signature);
 
       if (!previousIssue) {
         newIssues.push(currentIssue);
-      } else if (this.issuesAreSimilar(currentIssue, previousIssue)) {
+      } else if (IssueUtils.areIssuesSimilar(currentIssue, previousIssue)) {
         if (currentIssue.description !== previousIssue.description) {
           modifiedIssues.push({
             previous: previousIssue,
@@ -81,7 +82,7 @@ export class ComparisonUtils {
 
     // 查找已修复的问题
     for (const previousIssue of latestPreviousReview.issues) {
-      const signature = this.getIssueSignature(previousIssue);
+      const signature = IssueUtils.createIssueSignature(previousIssue);
       if (!currentIssueMap.has(signature)) {
         fixedIssues.push(previousIssue);
       }
@@ -102,30 +103,6 @@ export class ComparisonUtils {
     );
 
     return comparison;
-  }
-
-  /**
-   * 生成问题签名用于比较
-   */
-  static getIssueSignature(issue: ReviewIssue): string {
-    const locationPart = issue.location || issue.filePath || "";
-    const descriptionPart = issue.description.substring(0, 100);
-    return `${issue.type}_${locationPart}_${descriptionPart}`.replace(
-      /\s+/g,
-      "_"
-    );
-  }
-
-  /**
-   * 判断两个问题是否相似
-   */
-  static issuesAreSimilar(issue1: ReviewIssue, issue2: ReviewIssue): boolean {
-    return (
-      issue1.type === issue2.type &&
-      issue1.location === issue2.location &&
-      issue1.filePath === issue2.filePath &&
-      issue1.lineNumber === issue2.lineNumber
-    );
   }
 
   /**

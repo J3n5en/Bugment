@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import { LocationInfo } from "../core/types";
+import { FormatUtils } from "./FormatUtils";
 
 /**
  * 位置工具类
@@ -52,7 +53,11 @@ export class LocationUtils {
 
     let result = locationInfo.filePath;
 
-    if (locationInfo.startLine && locationInfo.endLine && locationInfo.startLine !== locationInfo.endLine) {
+    if (
+      locationInfo.startLine &&
+      locationInfo.endLine &&
+      locationInfo.startLine !== locationInfo.endLine
+    ) {
       result += `#L${locationInfo.startLine}-L${locationInfo.endLine}`;
     } else if (locationInfo.lineNumber) {
       result += `#L${locationInfo.lineNumber}`;
@@ -78,7 +83,11 @@ export class LocationUtils {
 
     let url = `https://github.com/${owner}/${repo}/blob/${sha}/${locationInfo.filePath}`;
 
-    if (locationInfo.startLine && locationInfo.endLine && locationInfo.startLine !== locationInfo.endLine) {
+    if (
+      locationInfo.startLine &&
+      locationInfo.endLine &&
+      locationInfo.startLine !== locationInfo.endLine
+    ) {
       url += `#L${locationInfo.startLine}-L${locationInfo.endLine}`;
     } else if (locationInfo.lineNumber) {
       url += `#L${locationInfo.lineNumber}`;
@@ -103,7 +112,9 @@ export class LocationUtils {
   /**
    * 获取行数范围
    */
-  static getLineRange(locationInfo: LocationInfo): { start: number; end: number } | null {
+  static getLineRange(
+    locationInfo: LocationInfo
+  ): { start: number; end: number } | null {
     if (locationInfo.startLine && locationInfo.endLine) {
       return {
         start: locationInfo.startLine,
@@ -130,26 +141,22 @@ export class LocationUtils {
 
   /**
    * 规范化文件路径
+   * @deprecated 使用 FormatUtils.normalizePath 替代
    */
   static normalizeFilePath(filePath: string): string {
-    // 移除前导斜杠
-    let normalized = filePath.replace(/^\/+/, "");
-    
-    // 规范化路径分隔符
-    normalized = normalized.replace(/\\/g, "/");
-    
-    // 移除多余的斜杠
-    normalized = normalized.replace(/\/+/g, "/");
-    
-    return normalized;
+    return FormatUtils.normalizePath(filePath);
   }
 
   /**
    * 检查两个位置是否相同
    */
   static areLocationsEqual(loc1: LocationInfo, loc2: LocationInfo): boolean {
-    const normalizedPath1 = loc1.filePath ? this.normalizeFilePath(loc1.filePath) : "";
-    const normalizedPath2 = loc2.filePath ? this.normalizeFilePath(loc2.filePath) : "";
+    const normalizedPath1 = loc1.filePath
+      ? FormatUtils.normalizePath(loc1.filePath)
+      : "";
+    const normalizedPath2 = loc2.filePath
+      ? FormatUtils.normalizePath(loc2.filePath)
+      : "";
 
     return (
       normalizedPath1 === normalizedPath2 &&
@@ -170,7 +177,7 @@ export class LocationUtils {
     endLine?: number
   ): LocationInfo {
     return {
-      filePath: this.normalizeFilePath(filePath),
+      filePath: FormatUtils.normalizePath(filePath),
       lineNumber,
       startLine,
       endLine,
@@ -182,20 +189,24 @@ export class LocationUtils {
    */
   static isInFile(locationInfo: LocationInfo, filePath: string): boolean {
     if (!locationInfo.filePath) return false;
-    
-    const normalizedLocation = this.normalizeFilePath(locationInfo.filePath);
-    const normalizedFile = this.normalizeFilePath(filePath);
-    
+
+    const normalizedLocation = FormatUtils.normalizePath(locationInfo.filePath);
+    const normalizedFile = FormatUtils.normalizePath(filePath);
+
     return normalizedLocation === normalizedFile;
   }
 
   /**
    * 检查位置是否在指定行范围内
    */
-  static isInLineRange(locationInfo: LocationInfo, startLine: number, endLine: number): boolean {
+  static isInLineRange(
+    locationInfo: LocationInfo,
+    startLine: number,
+    endLine: number
+  ): boolean {
     const range = this.getLineRange(locationInfo);
     if (!range) return false;
-    
+
     return range.start >= startLine && range.end <= endLine;
   }
 
@@ -204,40 +215,50 @@ export class LocationUtils {
    */
   static getShortDescription(locationInfo: LocationInfo): string {
     if (!locationInfo.filePath) return "Unknown location";
-    
-    const fileName = locationInfo.filePath.split('/').pop() || locationInfo.filePath;
-    
-    if (locationInfo.startLine && locationInfo.endLine && locationInfo.startLine !== locationInfo.endLine) {
+
+    const fileName =
+      locationInfo.filePath.split("/").pop() || locationInfo.filePath;
+
+    if (
+      locationInfo.startLine &&
+      locationInfo.endLine &&
+      locationInfo.startLine !== locationInfo.endLine
+    ) {
       return `${fileName}:${locationInfo.startLine}-${locationInfo.endLine}`;
     } else if (locationInfo.lineNumber) {
       return `${fileName}:${locationInfo.lineNumber}`;
     } else if (locationInfo.startLine) {
       return `${fileName}:${locationInfo.startLine}`;
     }
-    
+
     return fileName;
   }
 
   /**
    * 合并两个位置信息（取范围的并集）
    */
-  static mergeLocations(loc1: LocationInfo, loc2: LocationInfo): LocationInfo | null {
+  static mergeLocations(
+    loc1: LocationInfo,
+    loc2: LocationInfo
+  ): LocationInfo | null {
     // 只有在同一文件中才能合并
-    if (!this.areLocationsEqual(
-      { filePath: loc1.filePath },
-      { filePath: loc2.filePath }
-    )) {
+    if (
+      !this.areLocationsEqual(
+        { filePath: loc1.filePath },
+        { filePath: loc2.filePath }
+      )
+    ) {
       return null;
     }
 
     const range1 = this.getLineRange(loc1);
     const range2 = this.getLineRange(loc2);
-    
+
     if (!range1 || !range2) return null;
-    
+
     const mergedStart = Math.min(range1.start, range2.start);
     const mergedEnd = Math.max(range1.end, range2.end);
-    
+
     return this.createLocationInfo(
       loc1.filePath || "",
       mergedEnd,

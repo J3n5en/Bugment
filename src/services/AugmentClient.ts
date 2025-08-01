@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import * as fs from "fs";
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";

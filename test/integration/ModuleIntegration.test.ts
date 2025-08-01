@@ -53,7 +53,6 @@ jest.mock("fs", () => ({
 }));
 
 import { ActionInputs, PullRequestInfo } from "../../src/core/types";
-import { BugmentCore } from "../../src/core/BugmentCore";
 import { GitHubService } from "../../src/services/GitHubService";
 import { DiffParser } from "../../src/parsers/DiffParser";
 import { CommentFormatter } from "../../src/formatters/CommentFormatter";
@@ -82,22 +81,20 @@ describe("Module Integration Tests", () => {
   });
 
   describe("Core Module Integration", () => {
-    test("should integrate BugmentCore with inputs and PR info", () => {
-      const core = new BugmentCore(mockInputs, mockPrInfo);
-
-      expect(core.actionInputs).toEqual(mockInputs);
-      expect(core.pullRequestInfo).toEqual(mockPrInfo);
-      expect(core.diffData).toBeUndefined();
+    test("should validate inputs and PR info", () => {
+      // Test validation utilities
+      expect(ValidationUtils.validateActionInputs(mockInputs)).toBe(true);
+      expect(ValidationUtils.validatePullRequestInfo(mockPrInfo)).toBe(true);
     });
 
-    test("should allow setting and getting diff data", () => {
-      const core = new BugmentCore(mockInputs, mockPrInfo);
-      const mockDiffData = {
-        files: new Map([["test.ts", []]]),
+    test("should handle invalid inputs gracefully", () => {
+      const invalidInputs = {
+        augmentAccessToken: "",
+        augmentTenantUrl: "invalid-url",
+        githubToken: "",
       };
 
-      core.diffData = mockDiffData;
-      expect(core.diffData).toEqual(mockDiffData);
+      expect(ValidationUtils.validateActionInputs(invalidInputs)).toBe(false);
     });
   });
 
@@ -165,7 +162,6 @@ index 1234567..abcdefg 100644
   describe("Cross-Module Integration", () => {
     test("should work together across multiple modules", () => {
       // Test that modules can work together
-      const core = new BugmentCore(mockInputs, mockPrInfo);
       const diffParser = new DiffParser();
       const formatter = new CommentFormatter();
 
@@ -176,7 +172,6 @@ index 1234567..abcdefg 100644
 +new line`;
 
       const parsedDiff = diffParser.parseDiffContent(sampleDiff);
-      core.diffData = parsedDiff;
 
       const mockIssue = {
         id: "issue-1",
@@ -190,7 +185,6 @@ index 1234567..abcdefg 100644
       const comment = formatter.formatLineComment(mockIssue);
 
       // Verify the workflow worked
-      expect(core.diffData).toEqual(parsedDiff);
       expect(comment).toContain("Testing module integration");
       expect(parsedDiff.files.size).toBe(1);
     });

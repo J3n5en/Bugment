@@ -1,5 +1,4 @@
 import * as core from "@actions/core";
-import { BugmentCore } from "./core/BugmentCore";
 import { GitHubService } from "./services/GitHubService";
 import { GitService } from "./services/GitService";
 import { AugmentService } from "./services/AugmentService";
@@ -18,7 +17,6 @@ import { IgnoreManager } from "./utils/IgnoreManager";
  * 现在只负责协调各个模块的工作
  */
 export class BugmentAction {
-  private core: BugmentCore;
   private githubService: GitHubService;
   private gitService: GitService;
   private augmentService: AugmentService;
@@ -44,7 +42,6 @@ export class BugmentAction {
     }
 
     // 初始化核心组件
-    this.core = new BugmentCore(inputs, prInfo);
     this.githubService = new GitHubService(inputs.githubToken, prInfo);
     this.gitService = new GitService(prInfo);
     this.augmentService = new AugmentService(inputs);
@@ -179,7 +176,6 @@ export class BugmentAction {
     }
 
     const parsedDiff = this.diffParser.parseDiffContent(diffContent);
-    this.core.diffData = parsedDiff;
 
     // 获取之前的审查结果
     const previousReviews =
