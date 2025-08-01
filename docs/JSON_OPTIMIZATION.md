@@ -78,17 +78,9 @@ LLM 输出 JSON
 
 ## 使用方式
 
-### 1. 环境变量控制
+### 1. 直接使用
 
-默认情况下，系统使用新的 JSON 解析器。可以通过环境变量控制：
-
-```bash
-# 使用 JSON 解析器（默认）
-export BUGMENT_USE_JSON_PARSER=true
-
-# 回退到 Markdown 解析器
-export BUGMENT_USE_JSON_PARSER=false
-```
+系统现在默认且仅使用 JSON 解析器，无需任何配置：
 
 ### 2. 代码中的使用
 
@@ -107,12 +99,11 @@ const issueStats = parser.calculateStatistics(result.issues);
 console.log("问题统计:", issueStats);
 ```
 
-### 3. 向后兼容性
+### 3. 简化的架构
 
-系统保持向后兼容，支持两种解析器：
+系统现在使用统一的解析器：
 
-- `JsonReviewResultParser`: 新的 JSON 解析器
-- `ReviewResultParser`: 原有的 Markdown 解析器
+- `JsonReviewResultParser`: 唯一的解析器，处理 JSON 格式输出
 
 ## 测试验证
 
@@ -154,9 +145,9 @@ npx tsx scripts/validate-json-parser.ts
 
 ### 对于开发者
 
-1. 新项目直接使用 JSON 格式
-2. 现有项目可以逐步迁移
-3. 通过环境变量控制解析器选择
+1. 系统已完全迁移到 JSON 格式
+2. 无需任何配置，开箱即用
+3. 旧的 Markdown 解析器已被移除
 
 ### 对于 LLM 提示
 
