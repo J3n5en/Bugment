@@ -41,12 +41,15 @@ export class BugmentAction {
       throw new Error("Invalid pull request info");
     }
 
+    // 获取正确的工作空间目录
+    const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+
     // 初始化核心组件
     this.githubService = new GitHubService(inputs.githubToken, prInfo);
-    this.gitService = new GitService(prInfo);
+    this.gitService = new GitService(prInfo, workspaceDir);
     this.augmentService = new AugmentService(inputs);
-    this.reviewService = new ReviewService(prInfo, process.cwd());
-    this.ignoreManager = new IgnoreManager(process.cwd());
+    this.reviewService = new ReviewService(prInfo, workspaceDir);
+    this.ignoreManager = new IgnoreManager(workspaceDir);
     this.diffParser = new DiffParser(this.ignoreManager);
     this.jsonReviewResultParser = new JsonReviewResultParser(prInfo);
     this.commentFormatter = new CommentFormatter();
