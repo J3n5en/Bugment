@@ -344,18 +344,7 @@ async function loadPromptTemplate(): Promise<string> {
   return fs.readFileSync(promptPath, "utf-8");
 }
 
-async function readDiffFile(diffPath: string): Promise<string> {
-  if (!fs.existsSync(diffPath)) {
-    throw new Error(`Diff file not found: ${diffPath}`);
-  }
-  return fs.readFileSync(diffPath, "utf-8");
-}
-
-function formatPrompt(
-  template: string,
-  options: AugmentReviewOptions,
-  diffContent: string
-): string {
+function formatPrompt(template: string, options: AugmentReviewOptions): string {
   // 构建 GitHub 仓库链接信息
   const githubInfo =
     options.repoOwner && options.repoName && options.commitSha
@@ -369,8 +358,10 @@ function formatPrompt(
         "{PR_DESCRIPTION}",
         options.prDescription || "No description provided"
       )
-      .replace("{DIFF_CONTENT}", diffContent || "No diff content available") +
-    githubInfo
+      .replace(
+        "{DIFF_FILE_PATH}",
+        options.diffPath || "No diff path provided"
+      ) + githubInfo
   );
 }
 
@@ -399,14 +390,11 @@ async function performCodeReview(
     }
 
     const promptTemplate = await loadPromptTemplate();
-    const diffContent = options.diffPath
-      ? await readDiffFile(options.diffPath)
-      : "";
-    const reviewPrompt = formatPrompt(promptTemplate, options, diffContent);
+    const reviewPrompt = formatPrompt(promptTemplate, options);
 
     const reviewResult = await client.sendMessage(
       reviewPrompt,
-      options.projectPath
+      options.diffPath || options.projectPath
     );
 
     return reviewResult.text;

@@ -117,7 +117,7 @@
 
 - **PR标题**: {PR_TITLE}
 - **PR描述**: {PR_DESCRIPTION}
-- **变更文件差异**: {DIFF_CONTENT}
+- **变更文件差异路径**: @{DIFF_FILE_PATH}
 
 ## 评审限制
 
