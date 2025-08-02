@@ -1,9 +1,4 @@
-import {
-  FileWithIssues,
-  ReviewComparison,
-  ReviewIssue,
-  ReviewResult,
-} from "../core/types";
+import { FileWithIssues, ReviewIssue, ReviewResult } from "../core/types";
 
 /**
  * 评论格式化器类
@@ -13,10 +8,7 @@ export class CommentFormatter {
   /**
    * 格式化主要审查评论
    */
-  formatMainReviewComment(
-    reviewResult: ReviewResult,
-    comparison: ReviewComparison
-  ): string {
+  formatMainReviewComment(reviewResult: ReviewResult): string {
     let content = `## Bugment Code Review\n\n`;
 
     // 基于原始审查添加 PR 摘要
@@ -45,27 +37,10 @@ export class CommentFormatter {
       content += `\n`;
     }
 
-    // 如果有变更，添加状态信息
-    const hasStatusChanges =
-      comparison.fixedCount > 0 ||
-      comparison.newCount > 0 ||
-      comparison.persistentCount > 0;
-    if (hasStatusChanges) {
-      content += `### 变更摘要\n\n`;
-      if (comparison.fixedCount > 0) {
-        content += `- ✅ **${comparison.fixedCount}** 个问题已修复\n`;
-      }
-      if (comparison.newCount > 0) {
-        content += `- 🆕 **${comparison.newCount}** 个新问题发现\n`;
-      }
-      if (comparison.persistentCount > 0) {
-        content += `- ⚠️ **${comparison.persistentCount}** 个问题仍需关注\n`;
-      }
-      content += `\n`;
-    }
+    // 移除变更摘要功能
 
     // 为干净的 PR 显示成功消息
-    if (!hasAnyIssues && !hasStatusChanges) {
+    if (!hasAnyIssues) {
       content += `### 🎉 优秀的工作！\n\n`;
       content += `此 Pull Request 未发现任何问题，代码符合质量标准。\n\n`;
     }
@@ -84,11 +59,7 @@ export class CommentFormatter {
     // 添加带有操作源的页脚
     content += `\n---\n*🤖 Powered by [Bugment AI Code Review](https://github.com/J3n5en/Bugment)*\n\n`;
 
-    // 添加隐藏的审查数据以供将来解析
-    const reviewDataJson = JSON.stringify(reviewResult, null, 2);
-    const hiddenData = `<!-- REVIEW_DATA:\n\`\`\`json\n${reviewDataJson}\n\`\`\`\n-->`;
-
-    return content + hiddenData;
+    return content;
   }
 
   /**

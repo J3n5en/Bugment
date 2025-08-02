@@ -9,7 +9,6 @@ import { CommentFormatter } from "./formatters/CommentFormatter";
 import { ReviewFormatter } from "./formatters/ReviewFormatter";
 import { ReviewWorkflow } from "./core/ReviewWorkflow";
 import { ValidationUtils } from "./utils/ValidationUtils";
-import { ComparisonUtils } from "./utils/ComparisonUtils";
 import { IgnoreManager } from "./utils/IgnoreManager";
 
 /**
@@ -180,15 +179,8 @@ export class BugmentAction {
 
     const parsedDiff = this.diffParser.parseDiffContent(diffContent);
 
-    // 获取之前的审查结果
-    const previousReviews =
-      await this.githubService.getPreviousReviewsAndHideOld();
-
-    // 比较审查结果
-    const comparison = ComparisonUtils.compareReviews(
-      reviewResult,
-      previousReviews
-    );
+    // 隐藏之前的审查结果
+    await this.githubService.getPreviousReviewsAndHideOld();
 
     // 创建行评论
     const { valid: lineComments } = this.reviewFormatter.createLineComments(
@@ -199,10 +191,8 @@ export class BugmentAction {
     );
 
     // 格式化主评论
-    const commentBody = this.commentFormatter.formatMainReviewComment(
-      reviewResult,
-      comparison
-    );
+    const commentBody =
+      this.commentFormatter.formatMainReviewComment(reviewResult);
 
     // 确定审查事件类型
     const eventType = ReviewWorkflow.determineReviewEvent(reviewResult);

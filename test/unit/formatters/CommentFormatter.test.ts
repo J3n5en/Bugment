@@ -45,18 +45,13 @@ describe("CommentFormatter", () => {
 
   describe("formatMainReviewComment", () => {
     test("should format main review comment with issues", () => {
-      const comment = formatter.formatMainReviewComment(
-        mockReviewResult,
-        mockComparison
-      );
+      const comment = formatter.formatMainReviewComment(mockReviewResult);
 
       expect(comment).toContain("Bugment Code Review");
       expect(comment).toContain("This is a test review summary");
       expect(comment).toContain("1 条评论");
-      expect(comment).toContain("1** 个新问题发现");
       expect(comment).toContain("test.ts");
-      expect(comment).toContain("REVIEW_DATA:");
-      expect(comment).toContain('"reviewId": "review-123"');
+      expect(comment).toContain("🤖 Powered by [Bugment AI Code Review]");
     });
 
     test("should format clean PR comment (no issues)", () => {
@@ -66,36 +61,18 @@ describe("CommentFormatter", () => {
         totalIssues: 0,
       };
 
-      const cleanComparison: ReviewComparison = {
-        ...mockComparison,
-        newIssues: [],
-        newCount: 0,
-      };
-
-      const comment = formatter.formatMainReviewComment(
-        cleanReview,
-        cleanComparison
-      );
+      const comment = formatter.formatMainReviewComment(cleanReview);
 
       expect(comment).toContain("优秀的工作");
       expect(comment).toContain("未发现任何问题");
     });
 
-    test("should include status changes when present", () => {
-      const comparisonWithChanges: ReviewComparison = {
-        ...mockComparison,
-        fixedCount: 2,
-        persistentCount: 1,
-      };
+    test("should not include status changes (feature removed)", () => {
+      const comment = formatter.formatMainReviewComment(mockReviewResult);
 
-      const comment = formatter.formatMainReviewComment(
-        mockReviewResult,
-        comparisonWithChanges
-      );
-
-      expect(comment).toContain("变更摘要");
-      expect(comment).toContain("2** 个问题已修复");
-      expect(comment).toContain("1** 个问题仍需关注");
+      expect(comment).not.toContain("变更摘要");
+      expect(comment).not.toContain("个问题已修复");
+      expect(comment).not.toContain("个问题仍需关注");
     });
 
     test("should include low confidence issues section", () => {
@@ -113,10 +90,7 @@ describe("CommentFormatter", () => {
         totalIssues: 2,
       };
 
-      const comment = formatter.formatMainReviewComment(
-        reviewWithLowIssues,
-        mockComparison
-      );
+      const comment = formatter.formatMainReviewComment(reviewWithLowIssues);
 
       expect(comment).toContain("由于置信度较低而抑制的评论");
       expect(comment).toContain("(1)");
