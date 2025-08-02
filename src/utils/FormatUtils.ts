@@ -140,14 +140,13 @@ export class FormatUtils {
    */
   static formatLocation(
     filePath?: string,
-    lineNumber?: number,
     startLine?: number,
     endLine?: number
   ): string {
     if (!filePath) return "";
 
     let location = filePath;
-    const lineRange = this.formatLineRange(startLine || lineNumber, endLine);
+    const lineRange = this.formatLineRange(startLine, endLine);
 
     if (lineRange) {
       location += `#${lineRange}`;
@@ -229,7 +228,6 @@ export class FormatUtils {
     repo: string,
     sha: string,
     filePath: string,
-    lineNumber?: number,
     startLine?: number,
     endLine?: number
   ): string {
@@ -237,7 +235,7 @@ export class FormatUtils {
 
     let url = `https://github.com/${owner}/${repo}/blob/${sha}/${filePath}`;
 
-    const lineRange = this.formatLineRange(startLine || lineNumber, endLine);
+    const lineRange = this.formatLineRange(startLine, endLine);
     if (lineRange) {
       url += `#${lineRange}`;
     }
@@ -434,12 +432,6 @@ export class FormatUtils {
     let comment = `**${FormatUtils.getTypeEmoji(issue.type)} ${FormatUtils.getTypeName(issue.type)}** - ${FormatUtils.getSeverityEmoji(issue.severity)} ${severityText}${confidenceText}\n\n`;
 
     comment += `${issue.description}\n\n`;
-
-    if (issue.suggestion) {
-      comment += "```suggestion\n";
-      comment += issue.suggestion;
-      comment += "\n```\n\n";
-    }
 
     if (issue.fixPrompt) {
       comment += `**🔧 修复建议:**\n\`\`\`\n${issue.fixPrompt}\n\`\`\``;

@@ -20,7 +20,7 @@ describe("CommentFormatter", () => {
     description: "This is a test bug description",
     location: "test.ts:10",
     filePath: "test.ts",
-    lineNumber: 10,
+    startLine: 10,
     fixPrompt: "Fix this by doing X",
   };
 
@@ -87,18 +87,6 @@ describe("CommentFormatter", () => {
       expect(comment).toContain("Fix this by doing X");
     });
 
-    test("should format line comment with suggestion", () => {
-      const issueWithSuggestion: ReviewIssue = {
-        ...mockIssue,
-        suggestion: 'console.log("fixed");',
-      };
-
-      const comment = formatter.formatLineComment(issueWithSuggestion);
-
-      expect(comment).toContain("```suggestion");
-      expect(comment).toContain('console.log("fixed");');
-    });
-
     test("should handle missing optional fields", () => {
       const minimalIssue: ReviewIssue = {
         id: "issue-1",
@@ -114,7 +102,7 @@ describe("CommentFormatter", () => {
       expect(comment).toContain("🔍 代码异味");
       expect(comment).toContain("🟡 中等");
       expect(comment).toContain("This is a code smell");
-      expect(comment).not.toContain("```suggestion");
+
       expect(comment).not.toContain("🔧 修复建议");
     });
   });

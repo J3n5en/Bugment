@@ -25,11 +25,9 @@
       "description": "在访问对象属性前未进行空值检查，可能导致运行时错误",
       "location": "src/utils/helper.js#L15",
       "filePath": "src/utils/helper.js",
-      "lineNumber": 15,
       "startLine": 15,
       "endLine": 15,
-      "fixPrompt": "Add null check before accessing object properties",
-      "suggestion": "if (obj && obj.property) { ... }"
+      "fixPrompt": "Add null check before accessing object properties"
     },
     {
       "id": "code_smell_1",
@@ -39,11 +37,9 @@
       "description": "processData 函数包含过多逻辑，建议拆分为更小的函数",
       "location": "src/utils/processor.js#L25-L65",
       "filePath": "src/utils/processor.js",
-      "lineNumber": 25,
       "startLine": 25,
       "endLine": 65,
-      "fixPrompt": "Split long function into smaller, single-responsibility functions",
-      "suggestion": "将长函数拆分为多个小函数，每个函数负责单一职责"
+      "fixPrompt": "Split long function into smaller, single-responsibility functions"
     }
   ]
 }
@@ -52,6 +48,7 @@
 ### 字段说明
 
 #### 根级别字段
+
 - `reviewId`: 审查唯一标识符
 - `timestamp`: ISO 8601 格式的时间戳
 - `commitSha`: Git 提交哈希
@@ -59,9 +56,11 @@
 - `issues`: 发现的问题数组
 
 #### Summary 对象
+
 - `overallComments`: 字符串数组，包含总体评价
 
 #### Issue 对象
+
 - `id`: 问题唯一标识符
 - `type`: 问题类型 ("bug" | "code_smell" | "security" | "performance")
 - `severity`: 严重程度 ("low" | "medium" | "high" | "critical")
@@ -69,11 +68,9 @@
 - `description`: 详细描述
 - `location`: 位置字符串（用于显示）
 - `filePath`: 文件路径
-- `lineNumber`: 主要行号
 - `startLine`: 起始行号（可选）
 - `endLine`: 结束行号（可选）
 - `fixPrompt`: AI 修复提示（英文）
-- `suggestion`: 修复建议（可选）
 
 ### 优势
 
@@ -87,20 +84,26 @@
 
 ```typescript
 function calculateStatistics(issues: ReviewIssue[]) {
-  const byType = issues.reduce((acc, issue) => {
-    acc[issue.type] = (acc[issue.type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const byType = issues.reduce(
+    (acc, issue) => {
+      acc[issue.type] = (acc[issue.type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
-  const bySeverity = issues.reduce((acc, issue) => {
-    acc[issue.severity] = (acc[issue.severity] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const bySeverity = issues.reduce(
+    (acc, issue) => {
+      acc[issue.severity] = (acc[issue.severity] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   return {
     totalIssues: issues.length,
     byType,
-    bySeverity
+    bySeverity,
   };
 }
 ```

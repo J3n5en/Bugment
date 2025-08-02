@@ -10,7 +10,13 @@ export class IssueUtils {
    * 验证问题数据
    */
   static validateIssue(issue: ReviewIssue): boolean {
-    if (!issue.id || !issue.type || !issue.severity || !issue.title || !issue.description) {
+    if (
+      !issue.id ||
+      !issue.type ||
+      !issue.severity ||
+      !issue.title ||
+      !issue.description
+    ) {
       core.warning(`Invalid issue data: missing required fields`);
       return false;
     }
@@ -38,7 +44,7 @@ export class IssueUtils {
   static getIssueSummary(issue: ReviewIssue): string {
     const typeEmoji = this.getTypeEmoji(issue.type);
     const severityEmoji = this.getSeverityEmoji(issue.severity);
-    
+
     return `${typeEmoji} ${issue.title} (${severityEmoji} ${issue.severity})`;
   }
 
@@ -145,51 +151,67 @@ export class IssueUtils {
       issue1.type === issue2.type &&
       issue1.location === issue2.location &&
       issue1.filePath === issue2.filePath &&
-      issue1.lineNumber === issue2.lineNumber
+      issue1.startLine === issue2.startLine
     );
   }
 
   /**
    * 按类型分组问题
    */
-  static groupIssuesByType(issues: ReviewIssue[]): Record<string, ReviewIssue[]> {
-    return issues.reduce((groups, issue) => {
-      const type = issue.type;
-      if (!groups[type]) {
-        groups[type] = [];
-      }
-      groups[type].push(issue);
-      return groups;
-    }, {} as Record<string, ReviewIssue[]>);
+  static groupIssuesByType(
+    issues: ReviewIssue[]
+  ): Record<string, ReviewIssue[]> {
+    return issues.reduce(
+      (groups, issue) => {
+        const type = issue.type;
+        if (!groups[type]) {
+          groups[type] = [];
+        }
+        groups[type].push(issue);
+        return groups;
+      },
+      {} as Record<string, ReviewIssue[]>
+    );
   }
 
   /**
    * 按严重程度分组问题
    */
-  static groupIssuesBySeverity(issues: ReviewIssue[]): Record<string, ReviewIssue[]> {
-    return issues.reduce((groups, issue) => {
-      const severity = issue.severity;
-      if (!groups[severity]) {
-        groups[severity] = [];
-      }
-      groups[severity].push(issue);
-      return groups;
-    }, {} as Record<string, ReviewIssue[]>);
+  static groupIssuesBySeverity(
+    issues: ReviewIssue[]
+  ): Record<string, ReviewIssue[]> {
+    return issues.reduce(
+      (groups, issue) => {
+        const severity = issue.severity;
+        if (!groups[severity]) {
+          groups[severity] = [];
+        }
+        groups[severity].push(issue);
+        return groups;
+      },
+      {} as Record<string, ReviewIssue[]>
+    );
   }
 
   /**
    * 计算问题统计信息
    */
   static calculateStatistics(issues: ReviewIssue[]) {
-    const byType = issues.reduce((acc, issue) => {
-      acc[issue.type] = (acc[issue.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const byType = issues.reduce(
+      (acc, issue) => {
+        acc[issue.type] = (acc[issue.type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-    const bySeverity = issues.reduce((acc, issue) => {
-      acc[issue.severity] = (acc[issue.severity] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const bySeverity = issues.reduce(
+      (acc, issue) => {
+        acc[issue.severity] = (acc[issue.severity] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     return {
       totalIssues: issues.length,
@@ -207,7 +229,8 @@ export class IssueUtils {
 
     return [...issues].sort((a, b) => {
       // 首先按严重程度排序
-      const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+      const severityDiff =
+        severityOrder[a.severity] - severityOrder[b.severity];
       if (severityDiff !== 0) return severityDiff;
 
       // 然后按类型排序

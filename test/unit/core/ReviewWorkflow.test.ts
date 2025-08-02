@@ -14,7 +14,7 @@ describe("ReviewWorkflow", () => {
     description: "This is a test bug",
     location: "test.ts:10",
     filePath: "test.ts",
-    lineNumber: 10,
+    startLine: 10,
   };
 
   const mockIssue2: ReviewIssue = {
@@ -25,7 +25,7 @@ describe("ReviewWorkflow", () => {
     description: "This is a security issue",
     location: "auth.ts:25",
     filePath: "auth.ts",
-    lineNumber: 25,
+    startLine: 25,
   };
 
   const mockCurrentReview: ReviewResult = {
@@ -65,7 +65,7 @@ describe("ReviewWorkflow", () => {
             description: "This was fixed",
             location: "old.ts:5",
             filePath: "old.ts",
-            lineNumber: 5,
+            startLine: 5,
           },
         ],
       };

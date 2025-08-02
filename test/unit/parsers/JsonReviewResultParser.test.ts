@@ -35,11 +35,9 @@ const testJsonData = {
       description: "在访问对象属性前未进行空值检查，可能导致运行时错误",
       location: "src/utils/helper.js#L15",
       filePath: "src/utils/helper.js",
-      lineNumber: 15,
       startLine: 15,
       endLine: 15,
       fixPrompt: "Add null check before accessing object properties",
-      suggestion: "if (obj && obj.property) { ... }",
     },
     {
       id: "code_smell_1",
@@ -49,12 +47,10 @@ const testJsonData = {
       description: "processData 函数包含过多逻辑，建议拆分为更小的函数",
       location: "src/utils/processor.js#L25-L65",
       filePath: "src/utils/processor.js",
-      lineNumber: 25,
       startLine: 25,
       endLine: 65,
       fixPrompt:
         "Split long function into smaller, single-responsibility functions",
-      suggestion: "将长函数拆分为多个小函数，每个函数负责单一职责",
     },
     {
       id: "security_1",
@@ -64,9 +60,8 @@ const testJsonData = {
       description: "直接拼接 SQL 查询字符串，存在 SQL 注入风险",
       location: "src/database/query.js#L42",
       filePath: "src/database/query.js",
-      lineNumber: 42,
+      startLine: 42,
       fixPrompt: "Use parameterized queries to prevent SQL injection",
-      suggestion: "使用参数化查询替代字符串拼接",
     },
   ],
 };
@@ -126,7 +121,7 @@ describe("JsonReviewResultParser", () => {
             description: "Test description",
             location: "test.js#L1",
             filePath: "test.js",
-            lineNumber: 1,
+            startLine: 1,
           },
         ],
       };
@@ -190,7 +185,12 @@ describe("JsonReviewResultParser", () => {
 
   describe("JSON cleaning with extra content", () => {
     it("should handle JSON with trailing content", () => {
-      const jsonWithTrailing = `{
+      const jsonWithTrailing = `
+---
+head xxxx
+----
+\`\`\`json
+{
   "summary": {
     "overallComments": ["Test comment"]
   },
@@ -203,10 +203,11 @@ describe("JsonReviewResultParser", () => {
       "description": "Test description",
       "location": "test.js#L1",
       "filePath": "test.js",
-      "lineNumber": 1
+      "startLine": 1
     }
   ]
 }
+\`\`\`
 ---
 *Your access expires in 2 days.*`;
 

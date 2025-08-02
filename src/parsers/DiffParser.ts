@@ -137,14 +137,14 @@ export class DiffParser {
    */
   isLineInDiff(
     filePath: string,
-    lineNumber: number,
+    startLine: number,
     parsedDiff: ParsedDiff
   ): boolean {
     core.info(
-      `🔍 Checking line ${filePath}:${lineNumber} - validation enabled for PR commit range`
+      `🔍 Checking line ${filePath}:${startLine} - validation enabled for PR commit range`
     );
 
-    if (!parsedDiff || !filePath || !lineNumber) {
+    if (!parsedDiff || !filePath || !startLine) {
       core.info(`❌ Missing diff data or invalid parameters`);
       return false;
     }
@@ -193,17 +193,17 @@ export class DiffParser {
     for (const hunk of hunks) {
       const hunkEndLine = hunk.newStart + hunk.newLines - 1;
       core.info(
-        `🔍 Checking hunk range: ${hunk.newStart}-${hunkEndLine} for line ${lineNumber}`
+        `🔍 Checking hunk range: ${hunk.newStart}-${hunkEndLine} for line ${startLine}`
       );
 
-      if (lineNumber >= hunk.newStart && lineNumber <= hunkEndLine) {
+      if (startLine >= hunk.newStart && startLine <= hunkEndLine) {
         // 对于 PR 审查，我们希望允许在 diff 范围内的任何行上进行评论
         // 这包括添加的行 (+)、删除的行 (-) 和上下文行 ( )
         let currentNewLine = hunk.newStart;
         for (const hunkLine of hunk.lines) {
           if (hunkLine.startsWith("+") || hunkLine.startsWith(" ")) {
-            if (currentNewLine === lineNumber) {
-              core.info(`✅ Line ${lineNumber} found in diff range`);
+            if (currentNewLine === startLine) {
+              core.info(`✅ Line ${startLine} found in diff range`);
               return true; // 允许在 PR diff 中的任何行上进行评论
             }
             currentNewLine++;
@@ -213,7 +213,7 @@ export class DiffParser {
     }
 
     core.info(
-      `❌ Line ${lineNumber} not found in any diff hunk for ${filePath}`
+      `❌ Line ${startLine} not found in any diff hunk for ${filePath}`
     );
     return false;
   }

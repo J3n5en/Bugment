@@ -1,10 +1,10 @@
 import * as core from "@actions/core";
-import { 
-  ReviewResult, 
-  ReviewComparison, 
+import {
+  ReviewResult,
+  ReviewComparison,
   ReviewIssue,
   ReviewEvent,
-  LineComment
+  LineComment,
 } from "./types";
 
 /**
@@ -12,7 +12,6 @@ import {
  * 负责管理审查的状态和流程控制
  */
 export class ReviewWorkflow {
-  
   /**
    * 比较当前审查与历史审查结果
    */
@@ -50,7 +49,8 @@ export class ReviewWorkflow {
     const newIssues: ReviewIssue[] = [];
     const fixedIssues: ReviewIssue[] = [];
     const persistentIssues: ReviewIssue[] = [];
-    const modifiedIssues: { previous: ReviewIssue; current: ReviewIssue }[] = [];
+    const modifiedIssues: { previous: ReviewIssue; current: ReviewIssue }[] =
+      [];
 
     // 创建映射以便快速查找
     const currentIssueMap = new Map(
@@ -119,19 +119,24 @@ export class ReviewWorkflow {
   /**
    * 判断两个问题是否相似
    */
-  private static issuesAreSimilar(issue1: ReviewIssue, issue2: ReviewIssue): boolean {
+  private static issuesAreSimilar(
+    issue1: ReviewIssue,
+    issue2: ReviewIssue
+  ): boolean {
     return (
       issue1.type === issue2.type &&
       issue1.location === issue2.location &&
       issue1.filePath === issue2.filePath &&
-      issue1.lineNumber === issue2.lineNumber
+      issue1.startLine === issue2.startLine
     );
   }
 
   /**
    * 确定审查事件类型
    */
-  static determineReviewEvent(reviewResult: ReviewResult): "REQUEST_CHANGES" | "COMMENT" {
+  static determineReviewEvent(
+    reviewResult: ReviewResult
+  ): "REQUEST_CHANGES" | "COMMENT" {
     if (reviewResult.totalIssues > 0) {
       const hasCriticalOrHighIssues = reviewResult.issues.some(
         (issue) => issue.severity === "critical" || issue.severity === "high"
@@ -171,7 +176,11 @@ export class ReviewWorkflow {
   /**
    * 检查行是否在 diff 范围内
    */
-  private static isLineInDiff(filePath: string, lineNumber: number, diffData: any): boolean {
+  private static isLineInDiff(
+    filePath: string,
+    startLine: number,
+    diffData: any
+  ): boolean {
     // 这里将调用 DiffParser 的验证逻辑
     // 临时返回 true
     return true;
@@ -186,11 +195,11 @@ export class ReviewWorkflow {
     lineComments: LineComment[]
   ): ReviewEvent {
     const eventType = this.determineReviewEvent(reviewResult);
-    
+
     return {
       type: eventType,
       body: "", // 这里将调用 CommentFormatter 生成
-      lineComments
+      lineComments,
     };
   }
 }

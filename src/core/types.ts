@@ -28,11 +28,9 @@ export interface ReviewIssue {
   description: string;
   location: string;
   filePath?: string;
-  lineNumber?: number;
   startLine?: number;
   endLine?: number;
   fixPrompt?: string;
-  suggestion?: string;
   diffHunk?: string;
 }
 
@@ -101,7 +99,6 @@ export interface ReviewEvent {
 
 export interface LocationInfo {
   filePath?: string;
-  lineNumber?: number;
   startLine?: number;
   endLine?: number;
 }
@@ -133,11 +130,9 @@ export interface JsonIssueData {
   description: string;
   location: string;
   filePath: string;
-  lineNumber?: number;
   startLine?: number;
   endLine?: number;
   fixPrompt?: string;
-  suggestion?: string;
 }
 
 // 解析统计信息

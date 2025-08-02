@@ -16,11 +16,6 @@ export class LocationUtils {
       return false;
     }
 
-    if (locationInfo.lineNumber && locationInfo.lineNumber <= 0) {
-      core.warning("Invalid line number in location info");
-      return false;
-    }
-
     if (locationInfo.startLine && locationInfo.startLine <= 0) {
       core.warning("Invalid start line in location info");
       return false;
@@ -59,8 +54,6 @@ export class LocationUtils {
       locationInfo.startLine !== locationInfo.endLine
     ) {
       result += `#L${locationInfo.startLine}-L${locationInfo.endLine}`;
-    } else if (locationInfo.lineNumber) {
-      result += `#L${locationInfo.lineNumber}`;
     } else if (locationInfo.startLine) {
       result += `#L${locationInfo.startLine}`;
     }
@@ -89,8 +82,6 @@ export class LocationUtils {
       locationInfo.startLine !== locationInfo.endLine
     ) {
       url += `#L${locationInfo.startLine}-L${locationInfo.endLine}`;
-    } else if (locationInfo.lineNumber) {
-      url += `#L${locationInfo.lineNumber}`;
     } else if (locationInfo.startLine) {
       url += `#L${locationInfo.startLine}`;
     }
@@ -119,13 +110,6 @@ export class LocationUtils {
       return {
         start: locationInfo.startLine,
         end: locationInfo.endLine,
-      };
-    }
-
-    if (locationInfo.lineNumber) {
-      return {
-        start: locationInfo.lineNumber,
-        end: locationInfo.lineNumber,
       };
     }
 
@@ -160,7 +144,6 @@ export class LocationUtils {
 
     return (
       normalizedPath1 === normalizedPath2 &&
-      loc1.lineNumber === loc2.lineNumber &&
       loc1.startLine === loc2.startLine &&
       loc1.endLine === loc2.endLine
     );
@@ -172,13 +155,11 @@ export class LocationUtils {
    */
   static createLocationInfo(
     filePath: string,
-    lineNumber?: number,
     startLine?: number,
     endLine?: number
   ): LocationInfo {
     return {
       filePath: FormatUtils.normalizePath(filePath),
-      lineNumber,
       startLine,
       endLine,
     };
@@ -225,8 +206,6 @@ export class LocationUtils {
       locationInfo.startLine !== locationInfo.endLine
     ) {
       return `${fileName}:${locationInfo.startLine}-${locationInfo.endLine}`;
-    } else if (locationInfo.lineNumber) {
-      return `${fileName}:${locationInfo.lineNumber}`;
     } else if (locationInfo.startLine) {
       return `${fileName}:${locationInfo.startLine}`;
     }
@@ -259,11 +238,6 @@ export class LocationUtils {
     const mergedStart = Math.min(range1.start, range2.start);
     const mergedEnd = Math.max(range1.end, range2.end);
 
-    return this.createLocationInfo(
-      loc1.filePath || "",
-      mergedEnd,
-      mergedStart,
-      mergedEnd
-    );
+    return this.createLocationInfo(loc1.filePath || "", mergedStart, mergedEnd);
   }
 }

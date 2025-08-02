@@ -114,9 +114,9 @@ export class JsonReviewResultParser {
   private cleanJsonString(jsonString: string): string {
     let cleaned = jsonString.trim();
 
-    // 移除 markdown 代码块包装
-    cleaned = cleaned.replace(/^```(?:json)?\s*/, "");
-    cleaned = cleaned.replace(/\s*```[\s\S]*$/, "");
+    // 移除 markdown 代码块包装 - 支持多行
+    cleaned = cleaned.replace(/^[\s\S]*?```(?:json)?\s*\n?/m, "");
+    cleaned = cleaned.replace(/\n?\s*```[\s\S]*$/m, "");
 
     // 尝试提取有效的 JSON 部分
     // 查找第一个 { 和最后一个匹配的 }
@@ -222,11 +222,9 @@ export class JsonReviewResultParser {
       description,
       location,
       filePath,
-      lineNumber: this.parseNumber(data.lineNumber),
       startLine: this.parseNumber(data.startLine),
       endLine: this.parseNumber(data.endLine),
       fixPrompt: data.fixPrompt || "",
-      suggestion: data.suggestion || "",
     };
   }
 

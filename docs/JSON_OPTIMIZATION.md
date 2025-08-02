@@ -69,8 +69,7 @@ LLM 输出 JSON
       "lineNumber": 15,
       "startLine": 15,
       "endLine": 15,
-      "fixPrompt": "英文修复指令",
-      "suggestion": "修复建议（可选）"
+      "fixPrompt": "英文修复指令"
     }
   ]
 }
