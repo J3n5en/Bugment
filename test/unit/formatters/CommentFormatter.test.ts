@@ -74,27 +74,6 @@ describe("CommentFormatter", () => {
       expect(comment).not.toContain("个问题已修复");
       expect(comment).not.toContain("个问题仍需关注");
     });
-
-    test("should include low confidence issues section", () => {
-      const reviewWithLowIssues: ReviewResult = {
-        ...mockReviewResult,
-        issues: [
-          mockIssue,
-          {
-            ...mockIssue,
-            id: "issue-2",
-            severity: "low",
-            title: "Low confidence issue",
-          },
-        ],
-        totalIssues: 2,
-      };
-
-      const comment = formatter.formatMainReviewComment(reviewWithLowIssues);
-
-      expect(comment).toContain("由于置信度较低而抑制的评论");
-      expect(comment).toContain("(1)");
-    });
   });
 
   describe("formatLineComment", () => {

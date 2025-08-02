@@ -47,17 +47,6 @@ export class CommentFormatter {
       content += `此 Pull Request 未发现任何问题，代码符合质量标准。\n\n`;
     }
 
-    // 为低置信度问题添加问题摘要（如果有）
-    const lowConfidenceIssues = reviewResult.issues.filter(
-      (issue) => issue.severity === "low"
-    );
-    if (lowConfidenceIssues.length > 0) {
-      content += `<details>\n`;
-      content += `<summary>由于置信度较低而抑制的评论 (${lowConfidenceIssues.length})</summary>\n\n`;
-      content += `这些问题已被识别，但可能是误报或轻微建议。\n\n`;
-      content += `</details>\n\n`;
-    }
-
     // 添加带有操作源的页脚
     content += `\n---\n*🤖 Powered by [Bugment AI Code Review](https://github.com/J3n5en/Bugment)*\n\n`;
 
