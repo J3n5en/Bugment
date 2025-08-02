@@ -222,6 +222,7 @@ export class JsonReviewResultParser {
       description,
       location,
       filePath,
+      lineNumber: this.parseNumber(data.lineNumber),
       startLine: this.parseNumber(data.startLine),
       endLine: this.parseNumber(data.endLine),
       fixPrompt: data.fixPrompt || "",

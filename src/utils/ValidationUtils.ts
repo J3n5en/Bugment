@@ -114,6 +114,11 @@ export class ValidationUtils {
     }
 
     // 验证行号
+    if (issue.lineNumber !== undefined && issue.lineNumber <= 0) {
+      core.warning(`Invalid line number: ${issue.lineNumber}`);
+      return false;
+    }
+
     if (issue.startLine !== undefined && issue.startLine <= 0) {
       core.warning(`Invalid start line: ${issue.startLine}`);
       return false;
@@ -197,6 +202,11 @@ export class ValidationUtils {
   static validateLocationInfo(locationInfo: LocationInfo): boolean {
     if (!locationInfo.filePath || locationInfo.filePath.trim() === "") {
       core.warning("File path is missing in location info");
+      return false;
+    }
+
+    if (locationInfo.lineNumber !== undefined && locationInfo.lineNumber <= 0) {
+      core.warning(`Invalid line number: ${locationInfo.lineNumber}`);
       return false;
     }
 

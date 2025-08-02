@@ -140,13 +140,14 @@ export class FormatUtils {
    */
   static formatLocation(
     filePath?: string,
+    lineNumber?: number,
     startLine?: number,
     endLine?: number
   ): string {
     if (!filePath) return "";
 
     let location = filePath;
-    const lineRange = this.formatLineRange(startLine, endLine);
+    const lineRange = this.formatLineRange(startLine || lineNumber, endLine);
 
     if (lineRange) {
       location += `#${lineRange}`;
@@ -228,6 +229,7 @@ export class FormatUtils {
     repo: string,
     sha: string,
     filePath: string,
+    lineNumber?: number,
     startLine?: number,
     endLine?: number
   ): string {
@@ -235,7 +237,7 @@ export class FormatUtils {
 
     let url = `https://github.com/${owner}/${repo}/blob/${sha}/${filePath}`;
 
-    const lineRange = this.formatLineRange(startLine, endLine);
+    const lineRange = this.formatLineRange(startLine || lineNumber, endLine);
     if (lineRange) {
       url += `#${lineRange}`;
     }

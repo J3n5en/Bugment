@@ -18,7 +18,7 @@ export class ReviewFormatter {
    */
   createLineComments(
     reviewResult: ReviewResult,
-    isLineInDiffFn: (filePath: string, startLine: number) => boolean
+    isLineInDiffFn: (filePath: string, lineNumber: number) => boolean
   ): { valid: LineComment[]; invalid: number } {
     const lineComments: LineComment[] = [];
     let validLineComments = 0;
@@ -30,11 +30,11 @@ export class ReviewFormatter {
 
     // 为每个问题创建行级评论
     for (const issue of reviewResult.issues) {
-      if (issue.filePath && issue.startLine) {
+      if (issue.filePath && issue.lineNumber) {
         // 验证行是否在 diff 内
-        if (!isLineInDiffFn(issue.filePath, issue.startLine)) {
+        if (!isLineInDiffFn(issue.filePath, issue.lineNumber)) {
           core.warning(
-            `⚠️ Skipping line comment for ${issue.filePath}:${issue.startLine} - not in diff range`
+            `⚠️ Skipping line comment for ${issue.filePath}:${issue.lineNumber} - not in diff range`
           );
           invalidLineComments++;
           continue;
@@ -44,7 +44,7 @@ export class ReviewFormatter {
 
         const lineComment: LineComment = {
           path: issue.filePath,
-          line: issue.startLine,
+          line: issue.lineNumber,
           body: lineCommentBody,
           side: "RIGHT",
         };
@@ -58,7 +58,7 @@ export class ReviewFormatter {
           issue.startLine !== issue.endLine
         ) {
           core.info(
-            `📝 Converting multi-line comment (${issue.startLine}-${issue.endLine}) to single-line comment at line ${issue.startLine}`
+            `📝 Converting multi-line comment (${issue.startLine}-${issue.endLine}) to single-line comment at line ${issue.lineNumber}`
           );
         }
 
@@ -90,7 +90,7 @@ export class ReviewFormatter {
   validateLineComments(
     lineComments: LineComment[],
     parsedDiff: ParsedDiff,
-    isLineInDiffFn: (filePath: string, startLine: number) => boolean
+    isLineInDiffFn: (filePath: string, lineNumber: number) => boolean
   ): { valid: LineComment[]; invalid: LineComment[] } {
     const valid: LineComment[] = [];
     const invalid: LineComment[] = [];

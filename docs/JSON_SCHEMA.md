@@ -25,6 +25,7 @@
       "description": "在访问对象属性前未进行空值检查，可能导致运行时错误",
       "location": "src/utils/helper.js#L15",
       "filePath": "src/utils/helper.js",
+      "lineNumber": 15,
       "startLine": 15,
       "endLine": 15,
       "fixPrompt": "Add null check before accessing object properties"
@@ -37,6 +38,7 @@
       "description": "processData 函数包含过多逻辑，建议拆分为更小的函数",
       "location": "src/utils/processor.js#L25-L65",
       "filePath": "src/utils/processor.js",
+      "lineNumber": 25,
       "startLine": 25,
       "endLine": 65,
       "fixPrompt": "Split long function into smaller, single-responsibility functions"
@@ -68,6 +70,7 @@
 - `description`: 详细描述
 - `location`: 位置字符串（用于显示）
 - `filePath`: 文件路径
+- `lineNumber`: 主要行号
 - `startLine`: 起始行号（可选）
 - `endLine`: 结束行号（可选）
 - `fixPrompt`: AI 修复提示（英文）

@@ -266,7 +266,7 @@ describe("Bugment Review System", () => {
         description: "Different description",
         location: "src/test.ts:10",
         filePath: "src/test.ts",
-        startLine: 10,
+        lineNumber: 10,
       };
 
       const issue2: ReviewIssue = {
@@ -277,7 +277,7 @@ describe("Bugment Review System", () => {
         description: "Another description",
         location: "src/test.ts:10",
         filePath: "src/test.ts",
-        startLine: 10,
+        lineNumber: 10,
       };
 
       const issue3: ReviewIssue = {
@@ -288,7 +288,7 @@ describe("Bugment Review System", () => {
         description: "Different description",
         location: "src/other.ts:20",
         filePath: "src/other.ts",
-        startLine: 20,
+        lineNumber: 20,
       };
 
       expect(issuesAreSimilar(issue1, issue2)).toBe(true);

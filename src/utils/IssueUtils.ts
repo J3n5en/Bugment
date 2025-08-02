@@ -151,7 +151,7 @@ export class IssueUtils {
       issue1.type === issue2.type &&
       issue1.location === issue2.location &&
       issue1.filePath === issue2.filePath &&
-      issue1.startLine === issue2.startLine
+      issue1.lineNumber === issue2.lineNumber
     );
   }
 

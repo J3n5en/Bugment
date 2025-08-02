@@ -100,7 +100,7 @@ describe("ValidationUtils", () => {
       description: "Test description",
       location: "test.ts:10",
       filePath: "test.ts",
-      startLine: 10,
+      lineNumber: 10,
     };
 
     test("should validate correct issue", () => {
@@ -139,13 +139,15 @@ describe("ValidationUtils", () => {
     });
 
     test("should reject invalid line numbers", () => {
-      const invalidIssue1 = { ...validIssue, startLine: 0 };
-      const invalidIssue2 = { ...validIssue, endLine: 0 };
-      const invalidIssue3 = { ...validIssue, startLine: 10, endLine: 5 };
+      const invalidIssue1 = { ...validIssue, lineNumber: 0 };
+      const invalidIssue2 = { ...validIssue, startLine: 0 };
+      const invalidIssue3 = { ...validIssue, endLine: 0 };
+      const invalidIssue4 = { ...validIssue, startLine: 10, endLine: 5 };
 
       expect(ValidationUtils.validateReviewIssue(invalidIssue1)).toBe(false);
       expect(ValidationUtils.validateReviewIssue(invalidIssue2)).toBe(false);
       expect(ValidationUtils.validateReviewIssue(invalidIssue3)).toBe(false);
+      expect(ValidationUtils.validateReviewIssue(invalidIssue4)).toBe(false);
     });
   });
 

@@ -20,7 +20,7 @@ describe("CommentFormatter", () => {
     description: "This is a test bug description",
     location: "test.ts:10",
     filePath: "test.ts",
-    startLine: 10,
+    lineNumber: 10,
     fixPrompt: "Fix this by doing X",
   };
 
