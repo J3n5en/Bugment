@@ -4,7 +4,6 @@
  */
 
 // 核心模块测试
-import "./core/BugmentCore.test";
 import "./core/ReviewWorkflow.test";
 import "./core/ReviewComparison.test";
 

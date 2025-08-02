@@ -6,3 +6,5 @@ export * from "./ValidationUtils";
 export * from "./ComparisonUtils";
 export * from "./FormatUtils";
 export * from "./IgnoreManager";
+export * from "./IssueUtils";
+export * from "./LocationUtils";

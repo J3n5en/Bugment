@@ -1,11 +1,10 @@
 import * as core from "@actions/core";
-import { BugmentCore } from "./core/BugmentCore";
 import { GitHubService } from "./services/GitHubService";
 import { GitService } from "./services/GitService";
 import { AugmentService } from "./services/AugmentService";
 import { ReviewService } from "./services/ReviewService";
 import { DiffParser } from "./parsers/DiffParser";
-import { ReviewResultParser } from "./parsers/ReviewResultParser";
+import { JsonReviewResultParser } from "./parsers/JsonReviewResultParser";
 import { CommentFormatter } from "./formatters/CommentFormatter";
 import { ReviewFormatter } from "./formatters/ReviewFormatter";
 import { ReviewWorkflow } from "./core/ReviewWorkflow";
@@ -18,13 +17,12 @@ import { IgnoreManager } from "./utils/IgnoreManager";
  * 现在只负责协调各个模块的工作
  */
 export class BugmentAction {
-  private core: BugmentCore;
   private githubService: GitHubService;
   private gitService: GitService;
   private augmentService: AugmentService;
   private reviewService: ReviewService;
   private diffParser: DiffParser;
-  private reviewResultParser: ReviewResultParser;
+  private jsonReviewResultParser: JsonReviewResultParser;
   private commentFormatter: CommentFormatter;
   private reviewFormatter: ReviewFormatter;
   private ignoreManager: IgnoreManager;
@@ -44,14 +42,13 @@ export class BugmentAction {
     }
 
     // 初始化核心组件
-    this.core = new BugmentCore(inputs, prInfo);
     this.githubService = new GitHubService(inputs.githubToken, prInfo);
     this.gitService = new GitService(prInfo);
     this.augmentService = new AugmentService(inputs);
     this.reviewService = new ReviewService(prInfo, process.cwd());
     this.ignoreManager = new IgnoreManager(process.cwd());
     this.diffParser = new DiffParser(this.ignoreManager);
-    this.reviewResultParser = new ReviewResultParser(prInfo);
+    this.jsonReviewResultParser = new JsonReviewResultParser(prInfo);
     this.commentFormatter = new CommentFormatter();
     this.reviewFormatter = new ReviewFormatter();
   }
@@ -142,7 +139,13 @@ export class BugmentAction {
 
     // 解析审查结果
     const reviewResult =
-      this.reviewResultParser.parseReviewResult(reviewResultText);
+      this.jsonReviewResultParser.parseReviewResult(reviewResultText);
+
+    core.info("📊 Used JSON parser for review result");
+
+    // 记录解析统计信息
+    const stats = this.jsonReviewResultParser.getParsingStats(reviewResultText);
+    core.info(`📈 JSON parsing stats: ${JSON.stringify(stats)}`);
 
     // 验证审查结果
     if (!ValidationUtils.validateReviewResult(reviewResult)) {
@@ -173,7 +176,6 @@ export class BugmentAction {
     }
 
     const parsedDiff = this.diffParser.parseDiffContent(diffContent);
-    this.core.diffData = parsedDiff;
 
     // 获取之前的审查结果
     const previousReviews =

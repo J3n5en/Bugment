@@ -1,9 +1,8 @@
 import {
-  ReviewResult,
+  FileWithIssues,
   ReviewComparison,
   ReviewIssue,
-  FileWithIssues,
-  SeverityDistribution,
+  ReviewResult,
 } from "../core/types";
 
 /**
