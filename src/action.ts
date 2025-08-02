@@ -185,7 +185,6 @@ export class BugmentAction {
     // 创建行评论
     const { valid: lineComments } = this.reviewFormatter.createLineComments(
       reviewResult,
-      parsedDiff,
       (filePath: string, lineNumber: number) =>
         this.diffParser.isLineInDiff(filePath, lineNumber, parsedDiff)
     );

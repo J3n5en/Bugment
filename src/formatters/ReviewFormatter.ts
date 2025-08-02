@@ -1,10 +1,10 @@
 import * as core from "@actions/core";
-import { 
-  ReviewResult, 
-  ReviewComparison, 
-  ReviewIssue, 
+import {
+  ReviewResult,
+  ReviewComparison,
+  ReviewIssue,
   LineComment,
-  ParsedDiff 
+  ParsedDiff,
 } from "../core/types";
 
 /**
@@ -12,13 +12,11 @@ import {
  * 负责格式化审查结果和创建行评论
  */
 export class ReviewFormatter {
-
   /**
    * 创建行评论
    */
   createLineComments(
     reviewResult: ReviewResult,
-    parsedDiff: ParsedDiff,
     isLineInDiffFn: (filePath: string, lineNumber: number) => boolean
   ): { valid: LineComment[]; invalid: number } {
     const lineComments: LineComment[] = [];
