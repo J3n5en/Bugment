@@ -6,6 +6,7 @@ import {
   LineComment,
   ParsedDiff,
 } from "../core/types";
+import { FormatUtils } from "../utils/FormatUtils";
 
 /**
  * 审查格式化器类
@@ -80,22 +81,7 @@ export class ReviewFormatter {
    * 格式化行评论
    */
   private formatLineComment(issue: ReviewIssue): string {
-    const severityText = this.getSeverityText(issue.severity);
-    let comment = `**${this.getTypeEmoji(issue.type)} ${this.getTypeName(issue.type)}** - ${this.getSeverityEmoji(issue.severity)} ${severityText}\n\n`;
-
-    comment += `${issue.description}\n\n`;
-
-    if (issue.suggestion) {
-      comment += "```suggestion\n";
-      comment += issue.suggestion;
-      comment += "\n```\n\n";
-    }
-
-    if (issue.fixPrompt) {
-      comment += `**🔧 修复建议:**\n\`\`\`\n${issue.fixPrompt}\n\`\`\``;
-    }
-
-    return comment;
+    return FormatUtils.formatBasicLineComment(issue);
   }
 
   /**
@@ -131,7 +117,7 @@ export class ReviewFormatter {
       return "🎉 代码审查完成，未发现任何问题！";
     }
 
-    const issuesByType = this.groupIssuesByType(reviewResult.issues);
+    const issuesByType = FormatUtils.groupIssuesByType(reviewResult.issues);
     const parts: string[] = [];
 
     if (issuesByType.bug.length > 0) {
@@ -167,95 +153,6 @@ export class ReviewFormatter {
     }
 
     return parts.length > 0 ? parts.join("，") : "无变更";
-  }
-
-  /**
-   * 按类型分组问题
-   */
-  private groupIssuesByType(issues: ReviewIssue[]): {
-    bug: ReviewIssue[];
-    security: ReviewIssue[];
-    performance: ReviewIssue[];
-    code_smell: ReviewIssue[];
-  } {
-    return {
-      bug: issues.filter((i) => i.type === "bug"),
-      security: issues.filter((i) => i.type === "security"),
-      performance: issues.filter((i) => i.type === "performance"),
-      code_smell: issues.filter((i) => i.type === "code_smell"),
-    };
-  }
-
-  /**
-   * 获取严重程度表情符号
-   */
-  private getSeverityEmoji(severity: ReviewIssue["severity"]): string {
-    switch (severity) {
-      case "critical":
-        return "🔴";
-      case "high":
-        return "🟠";
-      case "medium":
-        return "🟡";
-      case "low":
-        return "🟢";
-      default:
-        return "⚪";
-    }
-  }
-
-  /**
-   * 获取类型表情符号
-   */
-  private getTypeEmoji(type: ReviewIssue["type"]): string {
-    switch (type) {
-      case "bug":
-        return "🐛";
-      case "security":
-        return "🔒";
-      case "performance":
-        return "⚡";
-      case "code_smell":
-        return "🔍";
-      default:
-        return "❓";
-    }
-  }
-
-  /**
-   * 获取类型名称
-   */
-  private getTypeName(type: ReviewIssue["type"]): string {
-    switch (type) {
-      case "bug":
-        return "潜在 Bug";
-      case "security":
-        return "安全问题";
-      case "performance":
-        return "性能问题";
-      case "code_smell":
-        return "代码异味";
-      default:
-        return "其他问题";
-    }
-  }
-
-  /**
-   * 获取严重程度文本
-   */
-  private getSeverityText(severity: ReviewIssue["severity"]): string {
-    switch (severity) {
-      case "critical":
-        return "严重";
-      case "high":
-        return "高";
-      case "medium":
-        return "中等";
-      case "low":
-        return "轻微";
-      default:
-        return "中等";
-    }
   }
 
   /**

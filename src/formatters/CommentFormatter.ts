@@ -1,4 +1,5 @@
 import { FileWithIssues, ReviewIssue, ReviewResult } from "../core/types";
+import { FormatUtils } from "../utils/FormatUtils";
 
 /**
  * 评论格式化器类
@@ -31,7 +32,8 @@ export class CommentFormatter {
 
       filesWithIssues.forEach(({ filePath, issues, description }) => {
         const issueCount = issues.length;
-        const severityDistribution = this.getSeverityDistribution(issues);
+        const severityDistribution =
+          FormatUtils.getSeverityDistribution(issues);
         content += `| ${filePath} | ${issueCount} 个问题 (${severityDistribution}) - ${description} |\n`;
       });
       content += `\n`;
@@ -66,22 +68,7 @@ export class CommentFormatter {
    * 格式化行评论
    */
   formatLineComment(issue: ReviewIssue): string {
-    const severityText = this.getSeverityText(issue.severity);
-    let comment = `**${this.getTypeEmoji(issue.type)} ${this.getTypeName(issue.type)}** - ${this.getSeverityEmoji(issue.severity)} ${severityText}\n\n`;
-
-    comment += `${issue.description}\n\n`;
-
-    if (issue.suggestion) {
-      comment += "```suggestion\n";
-      comment += issue.suggestion;
-      comment += "\n```\n\n";
-    }
-
-    if (issue.fixPrompt) {
-      comment += `**🔧 修复建议:**\n\`\`\`\n${issue.fixPrompt}\n\`\`\``;
-    }
-
-    return comment;
+    return FormatUtils.formatBasicLineComment(issue);
   }
 
   /**
@@ -96,7 +83,12 @@ export class CommentFormatter {
         ? "WARNING"
         : "NOTE";
     formatted += `> [!${alertType}]\n`;
-    formatted += `> **严重程度:** ${this.getSeverityEmoji(issue.severity)} ${this.getSeverityText(issue.severity)}\n\n`;
+    formatted += `> **严重程度:** ${FormatUtils.getSeverityEmoji(issue.severity)} ${FormatUtils.getSeverityText(issue.severity)}`;
+
+    if (issue.confidence) {
+      formatted += ` | **置信度:** ${FormatUtils.getConfidenceDisplay(issue.confidence)}`;
+    }
+    formatted += `\n\n`;
 
     formatted += `**📝 问题描述:**\n`;
     formatted += `${issue.description}\n\n`;
@@ -144,9 +136,11 @@ export class CommentFormatter {
 
       Object.entries(issuesByType).forEach(([type, issues]) => {
         if (issues.length > 0) {
-          const typeEmoji = this.getTypeEmoji(type as ReviewIssue["type"]);
-          const typeName = this.getTypeName(type as ReviewIssue["type"]);
-          const severityCount = this.getSeverityDistribution(issues);
+          const typeEmoji = FormatUtils.getTypeEmoji(
+            type as ReviewIssue["type"]
+          );
+          const typeName = FormatUtils.getTypeName(type as ReviewIssue["type"]);
+          const severityCount = FormatUtils.getSeverityDistribution(issues);
           content += `| ${typeEmoji} ${typeName} | ${issues.length} | ${severityCount} |\n`;
         }
       });
@@ -213,7 +207,9 @@ export class CommentFormatter {
     return Array.from(fileMap.entries())
       .map(([filePath, fileIssues]) => {
         const issueTypes = [
-          ...new Set(fileIssues.map((issue) => this.getTypeName(issue.type))),
+          ...new Set(
+            fileIssues.map((issue) => FormatUtils.getTypeName(issue.type))
+          ),
         ];
         const description =
           issueTypes.length > 1
@@ -227,101 +223,5 @@ export class CommentFormatter {
         };
       })
       .sort((a, b) => a.filePath.localeCompare(b.filePath));
-  }
-
-  /**
-   * 获取严重程度分布
-   */
-  private getSeverityDistribution(issues: ReviewIssue[]): string {
-    const counts = {
-      critical: 0,
-      high: 0,
-      medium: 0,
-      low: 0,
-    };
-
-    issues.forEach((issue) => {
-      counts[issue.severity]++;
-    });
-
-    const parts: string[] = [];
-    if (counts.critical > 0) parts.push(`🔴${counts.critical}`);
-    if (counts.high > 0) parts.push(`🟠${counts.high}`);
-    if (counts.medium > 0) parts.push(`🟡${counts.medium}`);
-    if (counts.low > 0) parts.push(`🟢${counts.low}`);
-
-    return parts.join(" ");
-  }
-
-  /**
-   * 获取严重程度表情符号
-   */
-  private getSeverityEmoji(severity: ReviewIssue["severity"]): string {
-    switch (severity) {
-      case "critical":
-        return "🔴";
-      case "high":
-        return "🟠";
-      case "medium":
-        return "🟡";
-      case "low":
-        return "🟢";
-      default:
-        return "⚪";
-    }
-  }
-
-  /**
-   * 获取类型表情符号
-   */
-  private getTypeEmoji(type: ReviewIssue["type"]): string {
-    switch (type) {
-      case "bug":
-        return "🐛";
-      case "security":
-        return "🔒";
-      case "performance":
-        return "⚡";
-      case "code_smell":
-        return "🔍";
-      default:
-        return "❓";
-    }
-  }
-
-  /**
-   * 获取类型名称
-   */
-  private getTypeName(type: ReviewIssue["type"]): string {
-    switch (type) {
-      case "bug":
-        return "潜在 Bug";
-      case "security":
-        return "安全问题";
-      case "performance":
-        return "性能问题";
-      case "code_smell":
-        return "代码异味";
-      default:
-        return "其他问题";
-    }
-  }
-
-  /**
-   * 获取严重程度文本
-   */
-  private getSeverityText(severity: ReviewIssue["severity"]): string {
-    switch (severity) {
-      case "critical":
-        return "严重";
-      case "high":
-        return "高";
-      case "medium":
-        return "中等";
-      case "low":
-        return "轻微";
-      default:
-        return "中等";
-    }
   }
 }
