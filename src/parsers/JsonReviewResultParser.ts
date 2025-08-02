@@ -217,6 +217,7 @@ export class JsonReviewResultParser {
       id,
       type,
       severity,
+      confidence: this.validateConfidence(data.confidence),
       title,
       description,
       location,
@@ -254,6 +255,29 @@ export class JsonReviewResultParser {
 
     core.warning(`Invalid severity: ${severity}, defaulting to 'medium'`);
     return "medium";
+  }
+
+  /**
+   * 验证置信度
+   */
+  private validateConfidence(confidence: any): ReviewIssue["confidence"] {
+    if (!confidence) return undefined;
+
+    // 只处理数字格式，验证范围并返回
+    if (typeof confidence === "number") {
+      if (confidence >= 0.0 && confidence <= 1.0) {
+        return confidence;
+      }
+      core.warning(
+        `Confidence out of range (0.0-1.0): ${confidence}, clamping to valid range`
+      );
+      return Math.max(0.0, Math.min(1.0, confidence));
+    }
+
+    core.warning(
+      `Invalid confidence type: ${typeof confidence}, expected number, defaulting to undefined`
+    );
+    return undefined;
   }
 
   /**

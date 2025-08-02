@@ -9,7 +9,6 @@ import { CommentFormatter } from "./formatters/CommentFormatter";
 import { ReviewFormatter } from "./formatters/ReviewFormatter";
 import { ReviewWorkflow } from "./core/ReviewWorkflow";
 import { ValidationUtils } from "./utils/ValidationUtils";
-import { ComparisonUtils } from "./utils/ComparisonUtils";
 import { IgnoreManager } from "./utils/IgnoreManager";
 
 /**
@@ -41,12 +40,15 @@ export class BugmentAction {
       throw new Error("Invalid pull request info");
     }
 
+    // 获取正确的工作空间目录
+    const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+
     // 初始化核心组件
     this.githubService = new GitHubService(inputs.githubToken, prInfo);
-    this.gitService = new GitService(prInfo);
+    this.gitService = new GitService(prInfo, workspaceDir);
     this.augmentService = new AugmentService(inputs);
-    this.reviewService = new ReviewService(prInfo, process.cwd());
-    this.ignoreManager = new IgnoreManager(process.cwd());
+    this.reviewService = new ReviewService(prInfo, workspaceDir);
+    this.ignoreManager = new IgnoreManager(workspaceDir);
     this.diffParser = new DiffParser(this.ignoreManager);
     this.jsonReviewResultParser = new JsonReviewResultParser(prInfo);
     this.commentFormatter = new CommentFormatter();
@@ -177,29 +179,19 @@ export class BugmentAction {
 
     const parsedDiff = this.diffParser.parseDiffContent(diffContent);
 
-    // 获取之前的审查结果
-    const previousReviews =
-      await this.githubService.getPreviousReviewsAndHideOld();
-
-    // 比较审查结果
-    const comparison = ComparisonUtils.compareReviews(
-      reviewResult,
-      previousReviews
-    );
+    // 隐藏之前的审查结果
+    await this.githubService.getPreviousReviewsAndHideOld();
 
     // 创建行评论
     const { valid: lineComments } = this.reviewFormatter.createLineComments(
       reviewResult,
-      parsedDiff,
       (filePath: string, lineNumber: number) =>
         this.diffParser.isLineInDiff(filePath, lineNumber, parsedDiff)
     );
 
     // 格式化主评论
-    const commentBody = this.commentFormatter.formatMainReviewComment(
-      reviewResult,
-      comparison
-    );
+    const commentBody =
+      this.commentFormatter.formatMainReviewComment(reviewResult);
 
     // 确定审查事件类型
     const eventType = ReviewWorkflow.determineReviewEvent(reviewResult);

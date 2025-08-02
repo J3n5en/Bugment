@@ -5,7 +5,6 @@ import { ReviewIssue } from "../core/types";
  * 提供通用的格式化功能
  */
 export class FormatUtils {
-
   /**
    * 获取严重程度表情符号
    */
@@ -84,13 +83,13 @@ export class FormatUtils {
   static formatTimestamp(timestamp: string): string {
     try {
       const date = new Date(timestamp);
-      return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
+      return date.toLocaleString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
       });
     } catch (error) {
       return timestamp;
@@ -102,14 +101,16 @@ export class FormatUtils {
    */
   static formatFilePath(filePath: string, maxLength: number = 50): string {
     if (!filePath) return "";
-    
+
     if (filePath.length <= maxLength) {
       return filePath;
     }
 
     // 如果路径太长，显示开头和结尾
     const start = filePath.substring(0, Math.floor(maxLength / 2) - 2);
-    const end = filePath.substring(filePath.length - Math.floor(maxLength / 2) + 2);
+    const end = filePath.substring(
+      filePath.length - Math.floor(maxLength / 2) + 2
+    );
     return `${start}...${end}`;
   }
 
@@ -118,19 +119,19 @@ export class FormatUtils {
    */
   static formatLineRange(startLine?: number, endLine?: number): string {
     if (!startLine && !endLine) return "";
-    
+
     if (startLine && endLine && startLine !== endLine) {
       return `L${startLine}-L${endLine}`;
     }
-    
+
     if (startLine) {
       return `L${startLine}`;
     }
-    
+
     if (endLine) {
       return `L${endLine}`;
     }
-    
+
     return "";
   }
 
@@ -144,25 +145,29 @@ export class FormatUtils {
     endLine?: number
   ): string {
     if (!filePath) return "";
-    
+
     let location = filePath;
     const lineRange = this.formatLineRange(startLine || lineNumber, endLine);
-    
+
     if (lineRange) {
       location += `#${lineRange}`;
     }
-    
+
     return location;
   }
 
   /**
    * 截断文本
    */
-  static truncateText(text: string, maxLength: number, suffix: string = "..."): string {
+  static truncateText(
+    text: string,
+    maxLength: number,
+    suffix: string = "..."
+  ): string {
     if (!text || text.length <= maxLength) {
       return text;
     }
-    
+
     return text.substring(0, maxLength - suffix.length) + suffix;
   }
 
@@ -171,7 +176,7 @@ export class FormatUtils {
    */
   static escapeMarkdown(text: string): string {
     if (!text) return "";
-    
+
     // 转义 Markdown 特殊字符
     return text
       .replace(/\\/g, "\\\\")
@@ -194,7 +199,7 @@ export class FormatUtils {
    */
   static formatCodeBlock(code: string, language: string = ""): string {
     if (!code) return "";
-    
+
     return `\`\`\`${language}\n${code}\n\`\`\``;
   }
 
@@ -203,7 +208,7 @@ export class FormatUtils {
    */
   static formatInlineCode(code: string): string {
     if (!code) return "";
-    
+
     return `\`${code}\``;
   }
 
@@ -212,7 +217,7 @@ export class FormatUtils {
    */
   static createMarkdownLink(text: string, url: string): string {
     if (!text || !url) return text || "";
-    
+
     return `[${text}](${url})`;
   }
 
@@ -229,23 +234,27 @@ export class FormatUtils {
     endLine?: number
   ): string {
     if (!owner || !repo || !sha || !filePath) return "";
-    
+
     let url = `https://github.com/${owner}/${repo}/blob/${sha}/${filePath}`;
-    
+
     const lineRange = this.formatLineRange(startLine || lineNumber, endLine);
     if (lineRange) {
       url += `#${lineRange}`;
     }
-    
+
     return url;
   }
 
   /**
    * 格式化百分比
    */
-  static formatPercentage(value: number, total: number, decimals: number = 1): string {
+  static formatPercentage(
+    value: number,
+    total: number,
+    decimals: number = 1
+  ): string {
     if (total === 0) return "0%";
-    
+
     const percentage = (value / total) * 100;
     return `${percentage.toFixed(decimals)}%`;
   }
@@ -254,7 +263,7 @@ export class FormatUtils {
    * 格式化数字
    */
   static formatNumber(num: number): string {
-    return num.toLocaleString('zh-CN');
+    return num.toLocaleString("zh-CN");
   }
 
   /**
@@ -268,11 +277,11 @@ export class FormatUtils {
     emptyChar: string = "░"
   ): string {
     if (total === 0) return emptyChar.repeat(width);
-    
+
     const progress = Math.min(current / total, 1);
     const filled = Math.round(progress * width);
     const empty = width - filled;
-    
+
     return fillChar.repeat(filled) + emptyChar.repeat(empty);
   }
 
@@ -280,15 +289,15 @@ export class FormatUtils {
    * 格式化文件大小
    */
   static formatFileSize(bytes: number): string {
-    const units = ['B', 'KB', 'MB', 'GB'];
+    const units = ["B", "KB", "MB", "GB"];
     let size = bytes;
     let unitIndex = 0;
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
       unitIndex++;
     }
-    
+
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   }
 
@@ -299,7 +308,7 @@ export class FormatUtils {
     const seconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
     } else if (minutes > 0) {
@@ -314,16 +323,16 @@ export class FormatUtils {
    */
   static normalizePath(path: string): string {
     if (!path) return "";
-    
+
     // 移除前导斜杠
     let normalized = path.replace(/^\/+/, "");
-    
+
     // 规范化路径分隔符
     normalized = normalized.replace(/\\/g, "/");
-    
+
     // 移除多余的斜杠
     normalized = normalized.replace(/\/+/g, "/");
-    
+
     return normalized;
   }
 
@@ -351,5 +360,91 @@ export class FormatUtils {
     } catch (error) {
       return String(obj);
     }
+  }
+
+  /**
+   * 获取置信度显示（百分比 + 进度条）
+   */
+  static getConfidenceDisplay(confidence: number): string {
+    const percentage = Math.round(confidence * 100);
+    const progressBar = FormatUtils.getProgressBar(confidence);
+    return `${percentage}% ${progressBar}`;
+  }
+
+  /**
+   * 生成置信度进度条
+   */
+  static getProgressBar(confidence: number): string {
+    const totalBars = 5;
+    const filledBars = Math.round(confidence * totalBars);
+    const emptyBars = totalBars - filledBars;
+
+    return "█".repeat(filledBars) + "░".repeat(emptyBars);
+  }
+
+  /**
+   * 获取严重程度分布字符串
+   */
+  static getSeverityDistribution(issues: ReviewIssue[]): string {
+    const counts = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+    };
+
+    issues.forEach((issue) => {
+      counts[issue.severity]++;
+    });
+
+    const parts: string[] = [];
+    if (counts.critical > 0) parts.push(`🔴${counts.critical}`);
+    if (counts.high > 0) parts.push(`🟠${counts.high}`);
+    if (counts.medium > 0) parts.push(`🟡${counts.medium}`);
+    if (counts.low > 0) parts.push(`🟢${counts.low}`);
+
+    return parts.join(" ");
+  }
+
+  /**
+   * 按类型分组问题
+   */
+  static groupIssuesByType(issues: ReviewIssue[]): {
+    bug: ReviewIssue[];
+    security: ReviewIssue[];
+    performance: ReviewIssue[];
+    code_smell: ReviewIssue[];
+  } {
+    return {
+      bug: issues.filter((i) => i.type === "bug"),
+      security: issues.filter((i) => i.type === "security"),
+      performance: issues.filter((i) => i.type === "performance"),
+      code_smell: issues.filter((i) => i.type === "code_smell"),
+    };
+  }
+
+  /**
+   * 格式化基础行评论内容
+   */
+  static formatBasicLineComment(issue: ReviewIssue): string {
+    const severityText = FormatUtils.getSeverityText(issue.severity);
+    const confidenceText = issue.confidence
+      ? ` (置信度: ${FormatUtils.getConfidenceDisplay(issue.confidence)})`
+      : "";
+    let comment = `**${FormatUtils.getTypeEmoji(issue.type)} ${FormatUtils.getTypeName(issue.type)}** - ${FormatUtils.getSeverityEmoji(issue.severity)} ${severityText}${confidenceText}\n\n`;
+
+    comment += `${issue.description}\n\n`;
+
+    if (issue.suggestion) {
+      comment += "```suggestion\n";
+      comment += issue.suggestion;
+      comment += "\n```\n\n";
+    }
+
+    if (issue.fixPrompt) {
+      comment += `**🔧 修复建议:**\n\`\`\`\n${issue.fixPrompt}\n\`\`\``;
+    }
+
+    return comment;
   }
 }

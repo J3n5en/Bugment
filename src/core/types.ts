@@ -23,6 +23,7 @@ export interface ReviewIssue {
   id: string;
   type: "bug" | "code_smell" | "security" | "performance";
   severity: "low" | "medium" | "high" | "critical";
+  confidence?: number; // 0.0 - 1.0 的数值
   title: string;
   description: string;
   location: string;
@@ -127,6 +128,7 @@ export interface JsonIssueData {
   id: string;
   type: ReviewIssueType;
   severity: ReviewIssueSeverity;
+  confidence?: number; // 0.0 - 1.0 的数值
   title: string;
   description: string;
   location: string;

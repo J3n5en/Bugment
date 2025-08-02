@@ -4,4 +4,3 @@
 
 export * from "./CommentFormatter";
 export * from "./ReviewFormatter";
-export * from "./MarkdownFormatter";

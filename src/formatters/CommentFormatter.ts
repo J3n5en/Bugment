@@ -1,9 +1,5 @@
-import {
-  FileWithIssues,
-  ReviewComparison,
-  ReviewIssue,
-  ReviewResult,
-} from "../core/types";
+import { FileWithIssues, ReviewIssue, ReviewResult } from "../core/types";
+import { FormatUtils } from "../utils/FormatUtils";
 
 /**
  * 评论格式化器类
@@ -13,10 +9,7 @@ export class CommentFormatter {
   /**
    * 格式化主要审查评论
    */
-  formatMainReviewComment(
-    reviewResult: ReviewResult,
-    comparison: ReviewComparison
-  ): string {
+  formatMainReviewComment(reviewResult: ReviewResult): string {
     let content = `## Bugment Code Review\n\n`;
 
     // 基于原始审查添加 PR 摘要
@@ -39,78 +32,32 @@ export class CommentFormatter {
 
       filesWithIssues.forEach(({ filePath, issues, description }) => {
         const issueCount = issues.length;
-        const severityDistribution = this.getSeverityDistribution(issues);
+        const severityDistribution =
+          FormatUtils.getSeverityDistribution(issues);
         content += `| ${filePath} | ${issueCount} 个问题 (${severityDistribution}) - ${description} |\n`;
       });
       content += `\n`;
     }
 
-    // 如果有变更，添加状态信息
-    const hasStatusChanges =
-      comparison.fixedCount > 0 ||
-      comparison.newCount > 0 ||
-      comparison.persistentCount > 0;
-    if (hasStatusChanges) {
-      content += `### 变更摘要\n\n`;
-      if (comparison.fixedCount > 0) {
-        content += `- ✅ **${comparison.fixedCount}** 个问题已修复\n`;
-      }
-      if (comparison.newCount > 0) {
-        content += `- 🆕 **${comparison.newCount}** 个新问题发现\n`;
-      }
-      if (comparison.persistentCount > 0) {
-        content += `- ⚠️ **${comparison.persistentCount}** 个问题仍需关注\n`;
-      }
-      content += `\n`;
-    }
+    // 移除变更摘要功能
 
     // 为干净的 PR 显示成功消息
-    if (!hasAnyIssues && !hasStatusChanges) {
+    if (!hasAnyIssues) {
       content += `### 🎉 优秀的工作！\n\n`;
       content += `此 Pull Request 未发现任何问题，代码符合质量标准。\n\n`;
-    }
-
-    // 为低置信度问题添加问题摘要（如果有）
-    const lowConfidenceIssues = reviewResult.issues.filter(
-      (issue) => issue.severity === "low"
-    );
-    if (lowConfidenceIssues.length > 0) {
-      content += `<details>\n`;
-      content += `<summary>由于置信度较低而抑制的评论 (${lowConfidenceIssues.length})</summary>\n\n`;
-      content += `这些问题已被识别，但可能是误报或轻微建议。\n\n`;
-      content += `</details>\n\n`;
     }
 
     // 添加带有操作源的页脚
     content += `\n---\n*🤖 Powered by [Bugment AI Code Review](https://github.com/J3n5en/Bugment)*\n\n`;
 
-    // 添加隐藏的审查数据以供将来解析
-    const reviewDataJson = JSON.stringify(reviewResult, null, 2);
-    const hiddenData = `<!-- REVIEW_DATA:\n\`\`\`json\n${reviewDataJson}\n\`\`\`\n-->`;
-
-    return content + hiddenData;
+    return content;
   }
 
   /**
    * 格式化行评论
    */
   formatLineComment(issue: ReviewIssue): string {
-    const severityText = this.getSeverityText(issue.severity);
-    let comment = `**${this.getTypeEmoji(issue.type)} ${this.getTypeName(issue.type)}** - ${this.getSeverityEmoji(issue.severity)} ${severityText}\n\n`;
-
-    comment += `${issue.description}\n\n`;
-
-    if (issue.suggestion) {
-      comment += "```suggestion\n";
-      comment += issue.suggestion;
-      comment += "\n```\n\n";
-    }
-
-    if (issue.fixPrompt) {
-      comment += `**🔧 修复建议:**\n\`\`\`\n${issue.fixPrompt}\n\`\`\``;
-    }
-
-    return comment;
+    return FormatUtils.formatBasicLineComment(issue);
   }
 
   /**
@@ -125,7 +72,12 @@ export class CommentFormatter {
         ? "WARNING"
         : "NOTE";
     formatted += `> [!${alertType}]\n`;
-    formatted += `> **严重程度:** ${this.getSeverityEmoji(issue.severity)} ${this.getSeverityText(issue.severity)}\n\n`;
+    formatted += `> **严重程度:** ${FormatUtils.getSeverityEmoji(issue.severity)} ${FormatUtils.getSeverityText(issue.severity)}`;
+
+    if (issue.confidence) {
+      formatted += ` | **置信度:** ${FormatUtils.getConfidenceDisplay(issue.confidence)}`;
+    }
+    formatted += `\n\n`;
 
     formatted += `**📝 问题描述:**\n`;
     formatted += `${issue.description}\n\n`;
@@ -173,9 +125,11 @@ export class CommentFormatter {
 
       Object.entries(issuesByType).forEach(([type, issues]) => {
         if (issues.length > 0) {
-          const typeEmoji = this.getTypeEmoji(type as ReviewIssue["type"]);
-          const typeName = this.getTypeName(type as ReviewIssue["type"]);
-          const severityCount = this.getSeverityDistribution(issues);
+          const typeEmoji = FormatUtils.getTypeEmoji(
+            type as ReviewIssue["type"]
+          );
+          const typeName = FormatUtils.getTypeName(type as ReviewIssue["type"]);
+          const severityCount = FormatUtils.getSeverityDistribution(issues);
           content += `| ${typeEmoji} ${typeName} | ${issues.length} | ${severityCount} |\n`;
         }
       });
@@ -242,7 +196,9 @@ export class CommentFormatter {
     return Array.from(fileMap.entries())
       .map(([filePath, fileIssues]) => {
         const issueTypes = [
-          ...new Set(fileIssues.map((issue) => this.getTypeName(issue.type))),
+          ...new Set(
+            fileIssues.map((issue) => FormatUtils.getTypeName(issue.type))
+          ),
         ];
         const description =
           issueTypes.length > 1
@@ -256,101 +212,5 @@ export class CommentFormatter {
         };
       })
       .sort((a, b) => a.filePath.localeCompare(b.filePath));
-  }
-
-  /**
-   * 获取严重程度分布
-   */
-  private getSeverityDistribution(issues: ReviewIssue[]): string {
-    const counts = {
-      critical: 0,
-      high: 0,
-      medium: 0,
-      low: 0,
-    };
-
-    issues.forEach((issue) => {
-      counts[issue.severity]++;
-    });
-
-    const parts: string[] = [];
-    if (counts.critical > 0) parts.push(`🔴${counts.critical}`);
-    if (counts.high > 0) parts.push(`🟠${counts.high}`);
-    if (counts.medium > 0) parts.push(`🟡${counts.medium}`);
-    if (counts.low > 0) parts.push(`🟢${counts.low}`);
-
-    return parts.join(" ");
-  }
-
-  /**
-   * 获取严重程度表情符号
-   */
-  private getSeverityEmoji(severity: ReviewIssue["severity"]): string {
-    switch (severity) {
-      case "critical":
-        return "🔴";
-      case "high":
-        return "🟠";
-      case "medium":
-        return "🟡";
-      case "low":
-        return "🟢";
-      default:
-        return "⚪";
-    }
-  }
-
-  /**
-   * 获取类型表情符号
-   */
-  private getTypeEmoji(type: ReviewIssue["type"]): string {
-    switch (type) {
-      case "bug":
-        return "🐛";
-      case "security":
-        return "🔒";
-      case "performance":
-        return "⚡";
-      case "code_smell":
-        return "🔍";
-      default:
-        return "❓";
-    }
-  }
-
-  /**
-   * 获取类型名称
-   */
-  private getTypeName(type: ReviewIssue["type"]): string {
-    switch (type) {
-      case "bug":
-        return "潜在 Bug";
-      case "security":
-        return "安全问题";
-      case "performance":
-        return "性能问题";
-      case "code_smell":
-        return "代码异味";
-      default:
-        return "其他问题";
-    }
-  }
-
-  /**
-   * 获取严重程度文本
-   */
-  private getSeverityText(severity: ReviewIssue["severity"]): string {
-    switch (severity) {
-      case "critical":
-        return "严重";
-      case "high":
-        return "高";
-      case "medium":
-        return "中等";
-      case "low":
-        return "轻微";
-      default:
-        return "中等";
-    }
   }
 }

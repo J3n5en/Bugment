@@ -76,54 +76,15 @@ export class GitHubService {
   }
 
   /**
-   * 获取之前的审查结果并隐藏旧评论
+   * 隐藏之前的 Bugment 评论
    */
-  async getPreviousReviewsAndHideOld(): Promise<ReviewResult[]> {
+  async getPreviousReviewsAndHideOld(): Promise<void> {
     try {
-      // 获取 PR 上的所有审查
-      const reviews = await this.octokit.rest.pulls.listReviews({
-        owner: this.prInfo.owner,
-        repo: this.prInfo.repo,
-        pull_number: this.prInfo.number,
-      });
-
-      const reviewResults: ReviewResult[] = [];
-
-      // 解析之前的 AI 代码审查结果
-      for (const review of reviews.data) {
-        if (
-          review.body?.includes("Bugment Code Review") &&
-          review.body?.includes("REVIEW_DATA:") &&
-          review.state !== "DISMISSED"
-        ) {
-          try {
-            const reviewDataMatch = review.body.match(
-              /REVIEW_DATA:\s*```json\s*([\s\S]*?)\s*```/
-            );
-            if (reviewDataMatch && reviewDataMatch[1]) {
-              const reviewData = JSON.parse(reviewDataMatch[1]);
-              reviewResults.push(reviewData);
-            }
-          } catch (error) {
-            core.warning(`Failed to parse previous review data: ${error}`);
-          }
-        }
-      }
-
-      // 隐藏之前的 Bugment 评论
+      core.info("🔍 Hiding previous Bugment comments...");
       await this.hidePreviousBugmentComments();
-
-      // 标记已解决的行评论
-      await this.markResolvedLineComments(reviewResults);
-
-      // 按时间戳排序（最新的在前）
-      return reviewResults.sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
+      core.info("✅ Previous comments hidden");
     } catch (error) {
-      core.warning(`Failed to get previous reviews: ${error}`);
-      return [];
+      core.warning(`Failed to hide previous comments: ${error}`);
     }
   }
 
@@ -213,7 +174,6 @@ export class GitHubService {
       "Bugment Code Review",
       "Bugment AI Code Review",
       "🤖 Powered by Bugment",
-      "REVIEW_DATA:",
     ];
 
     return bugmentSignatures.some((signature) => body.includes(signature));
@@ -234,166 +194,6 @@ export class GitHubService {
     await this.octokit.graphql(mutation, {
       id: commentNodeId,
     });
-  }
-
-  /**
-   * 标记已解决的行评论
-   */
-  private async markResolvedLineComments(
-    previousReviews: ReviewResult[]
-  ): Promise<void> {
-    try {
-      // 使用 GraphQL 获取审查线程并解决它们
-      const reviewThreads = await this.getReviewThreadsWithComments();
-
-      let resolvedCount = 0;
-      let processedCount = 0;
-
-      // 查找之前 AI 生成的不再相关的评论
-      for (const thread of reviewThreads) {
-        if (thread.isResolved) {
-          continue; // 跳过已解决的线程
-        }
-
-        // 检查此线程是否包含 AI 生成的评论
-        const hasAIComment = thread.comments?.some(
-          (comment: any) =>
-            comment.body?.includes("**🐛") ||
-            comment.body?.includes("**🔍") ||
-            comment.body?.includes("**🔒") ||
-            comment.body?.includes("**⚡")
-        );
-
-        if (hasAIComment) {
-          processedCount++;
-
-          // 基于线程中的第一个评论检查问题是否仍然相关
-          const firstComment = thread.comments[0];
-          const isStillRelevant = this.isCommentStillRelevant(
-            firstComment,
-            previousReviews
-          );
-
-          if (!isStillRelevant) {
-            // 使用 GraphQL 解决对话
-            try {
-              await this.resolveReviewThread(thread.id);
-              resolvedCount++;
-              core.info(`✅ Resolved conversation thread ${thread.id}`);
-            } catch (error) {
-              core.warning(`Failed to resolve thread ${thread.id}: ${error}`);
-            }
-          }
-        }
-      }
-
-      if (processedCount > 0) {
-        core.info(
-          `📝 Processed ${processedCount} review threads, resolved ${resolvedCount} conversations`
-        );
-      }
-    } catch (error) {
-      core.warning(`Failed to process review threads: ${error}`);
-    }
-  }
-
-  /**
-   * 获取审查线程和评论
-   */
-  private async getReviewThreadsWithComments(): Promise<any[]> {
-    const query = `
-      query($owner: String!, $name: String!, $number: Int!) {
-        repository(owner: $owner, name: $name) {
-          pullRequest(number: $number) {
-            reviewThreads(first: 100) {
-              nodes {
-                id
-                isResolved
-                comments(first: 50) {
-                  nodes {
-                    id
-                    body
-                    path
-                    line
-                    author {
-                      login
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const response = await this.octokit.graphql(query, {
-        owner: this.prInfo.owner,
-        name: this.prInfo.repo,
-        number: this.prInfo.number,
-      });
-
-      return (response as any).repository.pullRequest.reviewThreads.nodes || [];
-    } catch (error) {
-      core.warning(`Failed to fetch review threads: ${error}`);
-      return [];
-    }
-  }
-
-  /**
-   * 解决审查线程
-   */
-  private async resolveReviewThread(threadId: string): Promise<void> {
-    const mutation = `
-      mutation($threadId: ID!) {
-        resolveReviewThread(input: { threadId: $threadId }) {
-          thread {
-            id
-            isResolved
-          }
-        }
-      }
-    `;
-
-    await this.octokit.graphql(mutation, {
-      threadId: threadId,
-    });
-  }
-
-  /**
-   * 检查评论是否仍然相关
-   */
-  private isCommentStillRelevant(
-    comment: any,
-    previousReviews: ReviewResult[]
-  ): boolean {
-    // 跳过已标记为已解决的评论（向后兼容）
-    if (
-      comment.body?.includes("✅ **已解决**") ||
-      comment.body?.includes("~~")
-    ) {
-      return true; // 不处理已解决的评论
-    }
-
-    const filePath = comment.path;
-    const lineNumber = comment.line;
-
-    // 检查当前审查（最新）是否在此位置仍有问题
-    if (previousReviews.length > 0) {
-      const latestReview = previousReviews[0]; // 审查按时间戳排序（最新在前）
-      if (latestReview && latestReview.issues) {
-        const hasCurrentIssueAtLocation = latestReview.issues.some(
-          (issue) =>
-            issue.filePath === filePath && issue.lineNumber === lineNumber
-        );
-
-        // 如果最新审查在此位置仍有问题，则评论仍然相关
-        return hasCurrentIssueAtLocation;
-      }
-    }
-
-    return true; // 如果无法确定，则假设仍然相关
   }
 
   /**
