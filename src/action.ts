@@ -44,11 +44,11 @@ export class BugmentAction {
     const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
 
     // 初始化核心组件
+    this.ignoreManager = new IgnoreManager(workspaceDir);
     this.githubService = new GitHubService(inputs.githubToken, prInfo);
-    this.gitService = new GitService(prInfo, workspaceDir);
+    this.gitService = new GitService(prInfo, workspaceDir, this.ignoreManager);
     this.augmentService = new AugmentService(inputs);
     this.reviewService = new ReviewService(prInfo, workspaceDir);
-    this.ignoreManager = new IgnoreManager(workspaceDir);
     this.diffParser = new DiffParser(this.ignoreManager);
     this.jsonReviewResultParser = new JsonReviewResultParser(prInfo);
     this.commentFormatter = new CommentFormatter();
