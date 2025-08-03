@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
 import { PullRequestInfo } from "../core/types";
+import { IgnoreManager } from "../utils/IgnoreManager";
 
 /**
  * Git 操作服务类
@@ -11,10 +12,16 @@ import { PullRequestInfo } from "../core/types";
 export class GitService {
   private prInfo: PullRequestInfo;
   private workspaceDir: string;
+  private ignoreManager?: IgnoreManager;
 
-  constructor(prInfo: PullRequestInfo, workspaceDir?: string) {
+  constructor(
+    prInfo: PullRequestInfo,
+    workspaceDir?: string,
+    ignoreManager?: IgnoreManager
+  ) {
     this.prInfo = prInfo;
     this.workspaceDir = workspaceDir || this.getWorkspaceDirectory();
+    this.ignoreManager = ignoreManager;
   }
 
   /**
@@ -54,6 +61,13 @@ export class GitService {
         localError instanceof Error ? localError.message : String(localError);
       core.warning(`Local git diff failed: ${errorMessage}`);
       throw new Error(`Failed to generate diff: ${errorMessage}`);
+    }
+
+    // 过滤 diff 内容，移除被忽略的文件
+    if (this.ignoreManager) {
+      diffContent = this.filterDiffContent(diffContent);
+      await fs.promises.writeFile(diffPath, diffContent);
+      core.info(`🔧 Diff content filtered to remove ignored files`);
     }
 
     // 调试：记录 diff 内容的前 1000 个字符用于故障排除
@@ -200,6 +214,78 @@ export class GitService {
   }
 
   /**
+   * 过滤 diff 内容，移除被忽略的文件
+   */
+  private filterDiffContent(diffContent: string): string {
+    if (!this.ignoreManager) {
+      return diffContent;
+    }
+
+    const lines = diffContent.split("\n");
+    const filteredLines: string[] = [];
+    let currentFile = "";
+    let isIgnoringFile = false;
+    let i = 0;
+
+    core.info(`🔧 Filtering diff content with ${lines.length} lines`);
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      if (!line) {
+        if (!isIgnoringFile) {
+          filteredLines.push(line || "");
+        }
+        i++;
+        continue;
+      }
+
+      // 文件头: diff --git a/file b/file
+      if (line.startsWith("diff --git")) {
+        const match = line.match(/diff --git a\/(.+) b\/(.+)/);
+        if (match && match[2]) {
+          const filePath = match[2]; // 使用新文件路径
+
+          // 检查文件是否应该被忽略
+          if (this.ignoreManager.shouldIgnore(filePath)) {
+            // 标记此文件为忽略并跳过所有内容
+            isIgnoringFile = true;
+            currentFile = filePath;
+            core.info(`🚫 Filtering out ignored file from diff: ${filePath}`);
+            i++;
+            continue;
+          } else {
+            // 文件未被忽略
+            isIgnoringFile = false;
+            currentFile = filePath;
+            filteredLines.push(line);
+          }
+        } else {
+          if (!isIgnoringFile) {
+            filteredLines.push(line);
+          }
+        }
+      }
+      // 其他行：如果当前不在忽略文件中，则保留
+      else {
+        if (!isIgnoringFile) {
+          filteredLines.push(line);
+        }
+      }
+
+      i++;
+    }
+
+    const originalLineCount = lines.length;
+    const filteredLineCount = filteredLines.length;
+    core.info(
+      `🔧 Diff filtering complete: ${originalLineCount} -> ${filteredLineCount} lines (removed ${originalLineCount - filteredLineCount} lines)`
+    );
+
+    return filteredLines.join("\n");
+  }
+
+  /**
    * 执行 Git 命令
    */
   async executeGitCommand(args: string[]): Promise<string> {
@@ -243,13 +329,22 @@ export class GitService {
     date: string;
   }> {
     const message = await this.executeGitCommand([
-      "log", "-1", "--pretty=format:%s", sha
+      "log",
+      "-1",
+      "--pretty=format:%s",
+      sha,
     ]);
     const author = await this.executeGitCommand([
-      "log", "-1", "--pretty=format:%an", sha
+      "log",
+      "-1",
+      "--pretty=format:%an",
+      sha,
     ]);
     const date = await this.executeGitCommand([
-      "log", "-1", "--pretty=format:%ci", sha
+      "log",
+      "-1",
+      "--pretty=format:%ci",
+      sha,
     ]);
 
     return { message, author, date };

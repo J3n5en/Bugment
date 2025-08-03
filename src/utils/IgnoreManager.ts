@@ -11,18 +11,18 @@ export class IgnoreManager {
   private defaultPatterns: string[] = [
     // 依赖锁定文件
     "package-lock.json",
-    "yarn.lock", 
+    "yarn.lock",
     "pnpm-lock.yaml",
     "composer.lock",
     "Pipfile.lock",
     "poetry.lock",
     "Cargo.lock",
-    
+
     // 依赖目录
     "node_modules/**",
     "vendor/**",
     ".pnp/**",
-    
+
     // 构建输出
     "dist/**",
     "build/**",
@@ -31,55 +31,55 @@ export class IgnoreManager {
     ".next/**",
     ".nuxt/**",
     ".output/**",
-    
+
     // 系统文件
     ".DS_Store",
     "Thumbs.db",
     "desktop.ini",
-    
+
     // 日志文件
     "*.log",
     "logs/**",
     "npm-debug.log*",
     "yarn-debug.log*",
     "yarn-error.log*",
-    
+
     // 环境变量文件
     ".env.local",
     ".env.development.local",
-    ".env.test.local", 
+    ".env.test.local",
     ".env.production.local",
-    
+
     // 缓存目录
     ".cache/**",
     ".tmp/**",
     ".temp/**",
     "tmp/**",
     "temp/**",
-    
+
     // IDE 文件
     ".vscode/**",
     ".idea/**",
     "*.swp",
     "*.swo",
     "*~",
-    
+
     // 测试覆盖率
     "coverage/**",
     ".nyc_output/**",
     "*.lcov",
-    
+
     // 其他常见忽略
     "*.tsbuildinfo",
     ".eslintcache",
-    ".stylelintcache"
+    ".stylelintcache",
   ];
 
   constructor(projectPath: string, useDefaults: boolean = true) {
     if (useDefaults) {
       this.patterns = [...this.defaultPatterns];
     }
-    
+
     this.loadIgnoreFile(projectPath);
   }
 
@@ -88,15 +88,19 @@ export class IgnoreManager {
    */
   private loadIgnoreFile(projectPath: string): void {
     const ignoreFilePath = path.join(projectPath, ".bugmentignore");
-    
+
     try {
       if (fs.existsSync(ignoreFilePath)) {
         const content = fs.readFileSync(ignoreFilePath, "utf-8");
         const filePatterns = this.parseIgnoreFile(content);
         this.patterns.push(...filePatterns);
-        core.info(`📋 Loaded ${filePatterns.length} patterns from .bugmentignore`);
+        core.info(
+          `📋 Loaded ${filePatterns.length} patterns from .bugmentignore`
+        );
       } else {
-        core.info("📋 No .bugmentignore file found, using default patterns only");
+        core.info(
+          "📋 No .bugmentignore file found, using default patterns only"
+        );
       }
     } catch (error) {
       core.warning(`⚠️ Failed to load .bugmentignore: ${error}`);
@@ -109,9 +113,9 @@ export class IgnoreManager {
   private parseIgnoreFile(content: string): string[] {
     return content
       .split("\n")
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith("#")) // 过滤空行和注释
-      .map(line => line.replace(/\r$/, "")); // 移除Windows换行符
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#")) // 过滤空行和注释
+      .map((line) => line.replace(/\r$/, "")); // 移除Windows换行符
   }
 
   /**
@@ -120,14 +124,16 @@ export class IgnoreManager {
   public shouldIgnore(filePath: string): boolean {
     // 标准化文件路径（移除开头的 ./ 或 /）
     const normalizedPath = filePath.replace(/^\.?\/+/, "");
-    
+
     for (const pattern of this.patterns) {
       if (this.matchPattern(normalizedPath, pattern)) {
-        core.info(`🚫 Ignoring file: ${filePath} (matched pattern: ${pattern})`);
+        core.info(
+          `🚫 Ignoring file: ${filePath} (matched pattern: ${pattern})`
+        );
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -138,11 +144,11 @@ export class IgnoreManager {
   private matchPattern(filePath: string, pattern: string): boolean {
     // 标准化模式（移除开头的 ./ 或 /）
     const normalizedPattern = pattern.replace(/^\.?\/+/, "");
-    
+
     // 转换 glob 模式为正则表达式
     const regexPattern = this.globToRegex(normalizedPattern);
     const regex = new RegExp(regexPattern);
-    
+
     return regex.test(filePath);
   }
 
@@ -151,20 +157,22 @@ export class IgnoreManager {
    */
   private globToRegex(pattern: string): string {
     let regex = pattern
-      // 转义特殊字符
+      // 转义特殊字符（但保留 * 和 ?）
       .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-      // ** 匹配任意深度的目录
-      .replace(/\*\*/g, ".*")
+      // 先处理 ** 匹配任意深度的目录（使用占位符避免与单个 * 冲突）
+      .replace(/\*\*/g, "__DOUBLE_STAR__")
       // * 匹配除路径分隔符外的任意字符
       .replace(/\*/g, "[^/]*")
+      // 恢复 ** 为正确的正则表达式
+      .replace(/__DOUBLE_STAR__/g, ".*")
       // ? 匹配单个字符（除路径分隔符）
       .replace(/\?/g, "[^/]");
-    
+
     // 如果模式以 / 结尾，匹配目录及其所有内容
     if (pattern.endsWith("/")) {
       regex += ".*";
     }
-    
+
     // 完整匹配
     return `^${regex}$`;
   }
@@ -187,6 +195,6 @@ export class IgnoreManager {
    * 批量过滤文件列表
    */
   public filterFiles(files: string[]): string[] {
-    return files.filter(file => !this.shouldIgnore(file));
+    return files.filter((file) => !this.shouldIgnore(file));
   }
 }
